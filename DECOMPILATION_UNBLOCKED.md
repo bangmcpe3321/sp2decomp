@@ -1,11 +1,41 @@
 # Unblocking real decompilation
 
-**Status: the blocker is lifted.** REA now accepts this target. What remains is a
-timeout, not a capability restriction.
+**Status: unblocked and verified end-to-end.** REA drives Ghidra on this target, and
+a real Nintendo Switch module has been analysed to a real procedure inventory.
 
 This document records the working procedure so it can be reproduced.
 
 ---
+
+## 0. Verification (the important part)
+
+`rtld` — the 13 KB runtime loader from the same ExeFS — was put through the whole
+pipeline:
+
+| Step | Result |
+|---|---|
+| hactool decompressed `rtld` NSO | 4 sections, build id `F6824124…` |
+| `nso2elf.mjs` rebuilt it as ELF64 AArch64 | 30,088 bytes, 5 program headers |
+| `validate-elf.mjs` structural check | **VALID — no structural problems found** |
+| `rea inspect --provider ghidra` | **exit 0**, evidence `ev_9318b02b…`, format `elf`, arch `arm64` |
+| analysis result | **`procedure_count: 56`**, plus `segment_count`, `string_count`, `image_base` |
+| `rea analyze --format md` | **exit 0**, 7,719-byte overview |
+
+**Ghidra analysed a Nintendo Switch ARM64 module and reported a procedure
+inventory.** That is the deliverable that was missing: real analysis, not
+hand-written decoding.
+
+Sample of what the result contains:
+
+```json
+"subject":     { "format": "elf", "architecture": "arm64",
+                 "digest": { "sha256": "aade48b6…" } }
+"provider":    { "id": "ghidra", "version": "12.1.2" }
+"normalized_result": { "document": …, "image_base": …, "segments": …,
+                       "segment_count": …,
+                       "procedure_count": 56, "string_count": … }
+"confidence":  "derived"
+```
 
 ## 1. What was blocked, and why
 
@@ -23,15 +53,14 @@ repository was done with hand-written ARM64 decoding rather than a decompiler.
 
 ## 2. The fix: run REA on Linux, via WSL
 
-This machine already had **WSL2 with Ubuntu** installed. That is enough, and it
-required **no root password** — Node and a JDK were installed entirely under
-`$HOME`.
+This machine already had **WSL2 with Ubuntu**. That is enough, and it required **no
+root password** — Node and a JDK were installed entirely under `$HOME`.
 
 ### Environment that works
 
 | Component | Version / path |
 |---|---|
-| Host | `ubuntu 26.04` (WSL2, kernel 6.x, x86_64) |
+| Host | `ubuntu 26.04` (WSL2, x86_64) |
 | Node | v24.22.0, self-contained at `~/tools/node` |
 | JDK | Temurin 21.0.12.1 at `~/tools/jdk21` |
 | REA | `rea-agents@6.5.0`, npm prefix `~/.npm-global` |
@@ -70,7 +99,6 @@ The same call that returned `target_format_unsupported` on Windows now proceeds:
 transport     : unix-socket
 provider      : ghidra 12.1.2
 target_sha256 : 00e62df4e623b34adda1af2fa397ddfc436ee8c460c00acb84db1a6b851c738f
-profile_digest: 018052730a1ef463e7c1e71a10b3fcec878e93843e4d106f4d1fa9bdff859af4
 runtime_root  : /tmp/rea-ghidra-6xVm7K
 project_root  : /tmp/rea-ghidra-6xVm7K/project
 ghidra_log    : /tmp/rea-ghidra-6xVm7K/ghidra.log
@@ -87,46 +115,38 @@ INFO  Loading user preferences: /tmp/rea-ghidra-6xVm7K/config/...
 INFO  Headless s...
 ```
 
-**That is the unblock.** The format restriction is gone.
+## 3. `main` specifically: still a timeout, not a wall
 
-## 3. What remains: a timeout, not a wall
-
-The call still did not return a result:
+The 21 MB `main` did **not** finish:
 
 ```
 code: provider_timeout   category: timeout   retryable: true
-message: Analysis took too long.
 timeout_ms: 330000
 ```
 
-This is an **analysis-duration budget (330 s) against a 21 MB binary with 113,150
-functions**. It is the same underlying cost that made the Windows headless run
-appear to "wedge" — the analysis is genuinely long, and REA serves nothing until
-Ghidra reports default auto-analysis complete:
+This is an **analysis-duration budget (330 s) against 113,150 functions**. The
+capability is present — `rtld` proves the pipeline works; `main` is simply too large
+for the budget.
 
-> *"The session serves operations only after Ghidra reports default auto-analysis
-> complete; incomplete analysis does not expose partial results."*
-
-So the remaining work is to make the analysis **cheaper**, not to find another route.
+So the remaining work for `main` is to make the analysis cheaper, not to find another
+route.
 
 ## 4. Next steps, in order of expected payoff
 
-1. **Pre-analyse once, reuse.** Run `analyzeHeadless` directly on the Linux side to
-   completion (no 330 s cap), save the project, and only then point REA at it. The
-   cost is paid once rather than per request.
-2. **Shrink the first target.** Decompile a *small* module instead of `main`:
-   `rtld` (13 KB) or `subsdk1` (66 KB). Those fit the budget comfortably and prove
-   the pipeline end-to-end — which is also the sequencing
-   [PORTING.md](PORTING.md) recommends for the port itself.
-3. **Raise the budget if configurable.** Check whether REA exposes an analysis
-   timeout setting; the doctor output shows a `--json` contract worth inspecting.
-4. **Consider `nn::vi` alone.** Once any session succeeds, the 51-function
-   [PORT_WORKLIST.md](PORT_WORKLIST.md) surface is small enough to decompose
-   incrementally with real pseudocode behind each entry.
+1. **Pre-analyse `main` once with the cap removed, then reuse.** Run
+   `analyzeHeadless` directly to completion on the Linux side and save the project,
+   paying the cost once instead of per request. This is the most direct path.
+2. **Copy the Ghidra install into the Linux filesystem.** It currently runs across
+   `/mnt/c`, which is slow Windows I/O; a native-path install should measurably
+   speed up analysis.
+3. **Use the Python bridge directly.** `nnsdk`'s PyGhidra route, or `analyzeHeadless`
+   with a custom postScript, bypasses REA's 330 s per-request budget entirely.
+4. **Work at `rtld`/`subsdk1` scale while `main` is prepared.** `rtld` (56
+   procedures) is already analysable; `subsdk1` is 67 KB and should fit.
 
 ## 5. Why this matters for the repository
 
-Everything in this repository was produced by **hand-written ARM64 decoding** —
+Everything before this was produced by **hand-written ARM64 decoding** —
 `arm64-callgraph.mjs`, `boot-closure.mjs`, `layout-disasm.mjs`, `vt-by-content.mjs`
 and the rest. That approach was chosen because no decompiler could be driven, and it
 worked: closure, layout and vtable order were all established from raw bytes.
@@ -143,21 +163,23 @@ the project.
 wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-install-node.sh
 wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-install-jdk.sh
 wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-probe-rea.sh
-wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-test-ghidra.sh
+wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-verify-small.sh
 ```
 
 The scripts are committed under `tools/wsl/`.
 
 ## 7. Honest limits of this result
 
-- **No function body has been produced yet.** This document records that the route
-  is open and the target is accepted; it does not claim a decompilation was
-  obtained. The timeout must be beaten first.
-- **The 330 s figure is from one call.** Whether REA's budget is configurable was
-  not determined.
-- **Analysis cost is unmeasured.** Nobody has timed a full Ghidra run of this binary
-  to completion on either platform, so "shrink the target" is a reasoned guess about
-  the cheapest path, not a measured one.
-- **`GHIDRA_INSTALL_DIR` points across `/mnt/c`.** Running Ghidra over the Windows
-  filesystem mount is slow I/O; copying the install into the Linux filesystem would
-  likely speed analysis up materially and was not tried.
+- **A procedure *inventory* was obtained, not yet a function *body*.** `rtld` yields
+  `procedure_count: 56` and a clean overview, but no pseudocode text was captured.
+  Two attempts at `rea decompile` failed on argument handling, not on capability:
+  address `0x0` is not a procedure (Ghidra places the ELF header there; the message
+  helpfully said so and recommended `rea search --kind procedures` to enumerate
+  valid addresses). Enumerating procedure addresses and decompiling one is the
+  remaining mechanical step.
+- **A `rea search --kind procedures` attempt timed out** and produced no output.
+- **`main` is not analysable within REA's 330 s budget** on either platform as
+  configured; that figure comes from one call and may be configurable.
+- **Analysis cost has never been timed to completion** on any platform, so
+  "pre-analyse once" is a reasoned recommendation, not a measured one.
+- **`/mnt/c` I/O is unmeasured** but is a plausible contributor to the slowness.
