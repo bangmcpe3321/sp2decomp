@@ -11,9 +11,9 @@ signature.
 
 Closure: 184 functions. Platform functions called: 51.
 
-## Phase 1 — memory and OS foundation (must work first; stubs here hang boot)
+## Phase 1 â€” memory and OS foundation (must work first; stubs here hang boot)
 
-### `nn::os` — 24 functions
+### `nn::os` â€” 24 functions
 
 | Address | Function | Closure call sites |
 |---|---|---|
@@ -42,7 +42,7 @@ Closure: 184 functions. Platform functions called: 51.
 | `0x7101412d28` | `nn::os::GetCurrentStackInfo` | `sead::Thread` |
 | `0x7101412d18` | `nn::os::GetThreadPriority` | `sead::Thread` |
 
-### `nn::mem` — 5 functions
+### `nn::mem` â€” 5 functions
 
 | Address | Function | Closure call sites |
 |---|---|---|
@@ -52,15 +52,15 @@ Closure: 184 functions. Platform functions called: 51.
 | `0x7101412ee8` | `nn::mem::StandardAllocator::Allocate` | `malloc` |
 | `0x7101412ef8` | `nn::mem::StandardAllocator::Free` | `free` |
 
-### `nn::init` — 1 function
+### `nn::init` â€” 1 function
 
 | Address | Function | Closure call sites |
 |---|---|---|
 | `0x7100dda018` | `nn::init::InitializeAllocator` | `Lp::Sys::SysInit::nninitStartup` |
 
-## Phase 2 — lifecycle, time, logging
+## Phase 2 â€” lifecycle, time, logging
 
-### `nn::time` — 4 functions
+### `nn::time` â€” 4 functions
 
 | Address | Function | Closure call sites |
 |---|---|---|
@@ -69,42 +69,42 @@ Closure: 184 functions. Platform functions called: 51.
 | `0x7101412eb8` | `nn::time::StandardUserSystemClock::GetCurrentTime` | `sead::DateTime::setNow` |
 | `0x7101412ec8` | `nn::time::ToCalendarTime` | `sead::DateTime::setNow` |
 
-### `nn::nifm` — 1 function
+### `nn::nifm` â€” 1 function
 
 | Address | Function | Closure call sites |
 |---|---|---|
 | `0x7101413268` | `nn::nifm::Initialize` | `Lp::Sys::SysInit::Init` |
 
-### `nn::diag` — 1 function
+### `nn::diag` â€” 1 function
 
 | Address | Function | Closure call sites |
 |---|---|---|
 | `0x7101412708` | `nn::diag::detail::LogImpl` | `Lp::Utl::dumpDateTime`<br>`Lp::Utl::dumpMemoryInfo`<br>`Lp::Utl::dumpMemoryInfo`<br>`Lp::Utl::dumpMemoryInfo`<br>+3 more |
 
-### `nn::oe` — 1 function
+### `nn::oe` â€” 1 function
 
 | Address | Function | Closure call sites |
 |---|---|---|
 | `0x71014121c8` | `nn::oe::Initialize` | `sead::PerformanceMgrNx::initialize` |
 
-### `nn::util` — 1 function
+### `nn::util` â€” 1 function
 
 | Address | Function | Closure call sites |
 |---|---|---|
 | `0x7101412a78` | `nn::util::VSNPrintf` | `sead::StringUtil::vsnprintf` |
 
-## Phase 3 — filesystem (romfs becomes visible)
+## Phase 3 â€” filesystem (romfs becomes visible)
 
-### `nn::fs` — 2 functions
+### `nn::fs` â€” 2 functions
 
 | Address | Function | Closure call sites |
 |---|---|---|
 | `0x7101413ca8` | `nn::fs::MountRom` | `sead::FileDeviceMgr` |
 | `0x7101413c98` | `nn::fs::QueryMountRomCacheSize` | `sead::FileDeviceMgr` |
 
-## Phase 4 — display and NVN bootstrap
+## Phase 4 â€” display and NVN bootstrap
 
-### `nn::vi` — 6 functions
+### `nn::vi` â€” 6 functions
 
 | Address | Function | Closure call sites |
 |---|---|---|
@@ -115,7 +115,7 @@ Closure: 184 functions. Platform functions called: 51.
 | `0x7101413d08` | `nn::vi::OpenDefaultDisplay` | `sead::GameFrameworkNx::initializeGraphicsSystem` |
 | `0x7101413d28` | `nn::vi::SetLayerScalingMode` | `sead::GameFrameworkNx::initializeGraphicsSystem` |
 
-### `nv` — 3 functions
+### `nv` â€” 3 functions
 
 | Address | Function | Closure call sites |
 |---|---|---|
@@ -123,7 +123,7 @@ Closure: 184 functions. Platform functions called: 51.
 | `0x7101413cb8` | `nv::SetGraphicsAllocator` | `sead::GameFrameworkNx::initializeGraphicsSystem` |
 | `0x7101413ce8` | `nv::SetGraphicsDevtoolsAllocator` | `sead::GameFrameworkNx::initializeGraphicsSystem` |
 
-### `nvn` — 2 functions
+### `nvn` â€” 2 functions
 
 | Address | Function | Closure call sites |
 |---|---|---|
@@ -139,5 +139,5 @@ Closure: 184 functions. Platform functions called: 51.
   `return 0` stub in the thread or allocator layer hangs boot silently rather
   than failing loudly, because `Lp::Sys::RootTask` dispatches initialisation
   through `WorkerThreadMgr` onto those primitives.
-- **`nn::nifm` should be stubbed, not implemented** — it is the network
+- **`nn::nifm` should be stubbed, not implemented** â€” it is the network
   interface manager and is reached even on the offline boot path.
