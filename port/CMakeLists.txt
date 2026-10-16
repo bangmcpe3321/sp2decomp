@@ -16,6 +16,7 @@ add_library(nnos STATIC
   src/vi.cpp
   src/nvn.cpp
   src/nvn_names.cpp
+  src/task_base.cpp
   src/init.cpp
   src/date_time.cpp
   src/utl.cpp
@@ -119,5 +120,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(vi_tests tests/vi_tests.cpp)
   target_link_libraries(vi_tests PRIVATE nnos)
   add_test(NAME vi_contract COMMAND vi_tests)
+
+  # sead::TaskBase::MgrTaskArg -- the last non-graphics boot-root dependency.
+  add_executable(task_base_tests tests/task_base_tests.cpp)
+  target_link_libraries(task_base_tests PRIVATE nnos)
+  add_test(NAME task_base_contract COMMAND task_base_tests)
 
 endif()

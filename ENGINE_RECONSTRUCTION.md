@@ -146,7 +146,7 @@ is recorded here so the gap is not surprising.
 | `HeapGroup::createInstance` / `createHeap` | **ported** (`port/src/heap_group.cpp`) |
 | `Framework::Framework` | **ported** (`port/src/framework_args.cpp`) |
 | `sead::GameFrameworkNx::initializeGraphicsSystem` | not ported |
-| `sead::TaskBase::MgrTaskArg::MgrTaskArg` | not ported |
+| `sead::TaskBase::MgrTaskArg::MgrTaskArg` | **ported** (`port/src/task_base.cpp`) — but it sits AFTER initializeGraphicsSystem, so porting it does NOT advance the runner |
 | `sead::Framework::RunArg::RunArg` | **ported** (`port/src/framework_args.cpp`) |
 
 **Supporting primitives ported:** `sead::ListNode` (`insertFront_`, `insertBack_`,

@@ -12,6 +12,7 @@
 #include "sead/framework_args.hpp"
 #include "sead/game_framework_nx.hpp"
 #include "lp/heap_group.hpp"
+#include "sead/task_base.hpp"
 #include "sead/heap_mgr.hpp"
 #include "nn/os.hpp"
 
@@ -153,7 +154,12 @@ void SequenceBody(Runner &r) {
         (void)sFramework;
     });
     r.missing("sead::GameFrameworkNx::initializeGraphicsSystem", kInitializeGraphicsSystem);
-    r.missing("sead::TaskBase::MgrTaskArg::MgrTaskArg", kMgrTaskArgCtor);
+    // Ported: 0x7100e6b7bc, 308 bytes. Reads the heap layer's root-heap count for its flags.
+    r.step("sead::TaskBase::MgrTaskArg::MgrTaskArg", [] {
+        sead::TaskClassID id;
+        sead::MgrTaskArg arg(id);
+        (void)arg;
+    });
     r.missing("sead::Framework::RunArg::RunArg", kRunArgCtor);
 }
 
