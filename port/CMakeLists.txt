@@ -13,6 +13,7 @@ add_library(nnos STATIC
   src/os.cpp
   src/util.cpp
   src/services.cpp
+  src/init.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -35,4 +36,9 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(services_tests tests/services_tests.cpp)
   target_link_libraries(services_tests PRIVATE nnos)
   add_test(NAME services_contract COMMAND services_tests)
+
+  # Replays the real boot sequence rather than testing functions in isolation.
+  add_executable(boot_integration tests/boot_integration.cpp)
+  target_link_libraries(boot_integration PRIVATE nnos)
+  add_test(NAME boot_sequence COMMAND boot_integration)
 endif()

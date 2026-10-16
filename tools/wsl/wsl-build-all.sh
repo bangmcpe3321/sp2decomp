@@ -15,7 +15,7 @@ cmake --build "$BUILD" 2>&1 | grep -E 'error|warning|Linking|FAILED' | head -30
 echo "   build exit=${PIPESTATUS[0]}"
 
 echo
-for t in platform_tests services_tests; do
+for t in platform_tests services_tests boot_integration; do
   echo "=== $t ==="
   if [ -x "$BUILD/$t" ]; then
     "$BUILD/$t" 2>&1 | tail -6
