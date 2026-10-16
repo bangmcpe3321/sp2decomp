@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[DEVICE_IMPL_INITIALIZE.md](DEVICE_IMPL_INITIALIZE.md)** - where the NVN device is actually created, and a correction to NVN_BOOT_SUBSET's lower bound.
 - **[NNGFX_LAYER.md](NNGFX_LAYER.md)** - what nn::gfx is, its two verified entry points, and a measurement that FAILED (recorded so it is not repeated).
 - **[NVN_BOOT_SUBSET.md](NVN_BOOT_SUBSET.md)** - the boot path reaches 30 of NVN's 453 functions (6.6%); every rendering function is untouched.
 - **[GRAPHICS_SCOPE.md](GRAPHICS_SCOPE.md)** - the graphics subsystem: a six-function display boundary, and a large partly reference-free renderer behind it.

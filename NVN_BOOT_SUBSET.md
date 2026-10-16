@@ -5,7 +5,17 @@ functions**, resolved by name in `nvnLoadCProcs` (`0x7100ddd6e4`). This document
 question that makes those 453 tractable: **which of them does the graphics bring-up path
 actually touch?**
 
-**Answer: 30 of 453 — 6.6%.** And the untouched 93.4% is concentrated in exactly one place:
+> **CORRECTED — the 30 is a LOWER BOUND, not the whole bring-up set.** A fourth bring-up body
+> was found after this document was written:
+> `nn::gfx::detail::DeviceImpl<4,8>::Initialize` (`0x710135d8d8`, 192 bytes) reaches
+> `nvnDeviceBuilderSetDefaults`, `nvnDeviceBuilderSetFlags` and **`nvnDeviceInitialize`** — none
+> of which are in the 30. So the bring-up set is **at least 33**. The method below (counting
+> referenced globals in decompiled bodies) was sound; the **body list was incomplete**, and this
+> document did not say so clearly enough. See
+> [DEVICE_IMPL_INITIALIZE.md](DEVICE_IMPL_INITIALIZE.md) §3.
+
+**Answer: 30 of 453 — 6.6% — from the three bodies scanned below (see the correction above).**
+And the untouched 93.4% is concentrated in exactly one place:
 drawing.
 
 ---
