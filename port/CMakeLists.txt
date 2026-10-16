@@ -25,6 +25,8 @@ add_library(nnos STATIC
   src/framework.cpp
   src/game_framework.cpp
   src/game_framework_nx.cpp
+  src/lock.cpp
+  src/heap_group.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -104,5 +106,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(game_framework_tests tests/game_framework_tests.cpp)
   target_link_libraries(game_framework_tests PRIVATE nnos)
   add_test(NAME game_framework_contract COMMAND game_framework_tests)
+
+  # Lp::Sys::HeapGroup + sead::ForegroundBucketMgr.
+  add_executable(heap_group_tests tests/heap_group_tests.cpp)
+  target_link_libraries(heap_group_tests PRIVATE nnos)
+  add_test(NAME heap_group_contract COMMAND heap_group_tests)
 
 endif()

@@ -97,6 +97,10 @@ public:
     virtual void makeMetaString_(void *buf) const { (void)buf; }
     virtual void pushBackChild_(Heap *child) { (void)child; }
 
+    // Live allocations outstanding. Not part of the original's interface -- added so tests
+    // can verify accounting through a base pointer without downcasting.
+    virtual int liveAllocationCount() const { return 0; }
+
     const char *name() const { return mName; }
 
 protected:
@@ -148,7 +152,7 @@ public:
     void destroy() override;
 
     // Reporting for tests.
-    int liveAllocationCount() const;
+    int liveAllocationCount() const override;
 
 private:
     struct Alloc {

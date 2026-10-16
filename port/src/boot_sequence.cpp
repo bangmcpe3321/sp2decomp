@@ -11,6 +11,7 @@
 #include "sead/delegate_event.hpp"
 #include "sead/framework_args.hpp"
 #include "sead/game_framework_nx.hpp"
+#include "lp/heap_group.hpp"
 #include "sead/heap_mgr.hpp"
 #include "nn/os.hpp"
 
@@ -130,8 +131,14 @@ void SequenceBody(Runner &r) {
     });
 
     // --- step 7 onward: remaining boot-root dependencies ---------------------------
-    r.missing("sead::ForegroundBucketMgr::initialize", kForegroundBucketInit);
-    r.missing("HeapGroup::createInstance", kHeapGroupCreateInstance);
+    // Ported: 0x710139fb3c is a 4-byte no-op, so running it IS faithful.
+    r.step("sead::ForegroundBucketMgr::initialize", [] {
+        sead::ForegroundBucketMgr::initialize(sead::HeapMgr::getRootHeap(0), 0, 0, false);
+    });
+    // Ported: 0x71011f4ffc, 160 bytes -- allocates its 0x160 singleton from the root heap.
+    r.step("Lp::Sys::HeapGroup::createInstance", [] {
+        Lp::Sys::HeapGroup::createInstance(sead::HeapMgr::getRootHeap(0));
+    });
     r.missing("HeapGroup::createHeap", kHeapGroupCreateHeap);
     r.missing("Framework::Framework", kFrameworkCtor);
     r.missing("sead::GameFrameworkNx::initializeGraphicsSystem", kInitializeGraphicsSystem);
