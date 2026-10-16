@@ -1,0 +1,156 @@
+Static call graph for boot-critical functions (decoded from ARM64)
+source: main.elf
+image base: 0x7100000000   symbols in .text: 112398
+
+==============================================================================
+0x71011f5b20  Lp::Sys::SysInit::Init (framework entry)
+  body: 0x71011f5b20 .. 0x71011f603c  (1308 bytes)
+  37 branch instructions decoded
+    bl   0x71012cdbf4  Lp::Utl::dumpDateTime
+    bl   0x7101412298  nn::os::GetSystemTick
+    bl   0x71011f3774  Lp::Sys::getCpCallbackSeadAssert
+    bl   0x7101397fac  sead::AssertConfig::registerCallback
+    blr  ----------  <indirect — unresolved>
+    bl   0x7100e69894  sead::Framework::InitializeArg
+    bl   0x71014141e8  nn::os::QueryMemoryInfo
+    bl   0x7100e6724c  sead::GameFrameworkNx::initialize
+    bl   0x71012cdccc  Lp::Utl::dumpMemoryInfo
+    b    0x71011f5bd0  <no symbol in .text>
+    bl   0x710139fb3c  sead::ForegroundBucketMgr::initialize
+    b    0x71011f5c08  <no symbol in .text>
+    bl   0x71011f4ffc  Lp::Sys::HeapGroup::createInstance
+    blr  ----------  <indirect — unresolved>
+    bl   0x7100e56310  _ZnamPN4sead4HeapEi
+    bl   0x71011f5130  Lp::Sys::HeapGroup::createHeap
+    bl   0x7100e565b0  _ZdaPv
+    blr  ----------  <indirect — unresolved>
+    blr  ----------  <indirect — unresolved>
+    bl   0x7100e76784  sead::ExpHeap::create
+    blr  ----------  <indirect — unresolved>
+    bl   0x7100e5629c  _ZnwmPN4sead4HeapEi
+    bl   0x71011f44e4  Lp::Sys::Framework
+    blr  ----------  <indirect — unresolved>
+    bl   0x7100e76784  sead::ExpHeap::create
+    bl   0x7100e6738c  sead::GameFrameworkNx::initializeGraphicsSystem
+    blr  ----------  <indirect — unresolved>
+    bl   0x7100e84ccc  _ZNK4sead22BufferedSafeStringBaseIcE22assureTerminationImpl_Ev
+    bl   0x7101412298  nn::os::GetSystemTick
+    b    0x71011f5e8c  <no symbol in .text>
+    bl   0x7100e851d0  sead::BufferedSafeStringBase
+    bl   0x7101413268  nn::nifm::Initialize
+    blr  ----------  <indirect — unresolved>
+    bl   0x7100e6b7bc  sead::TaskBase::MgrTaskArg
+    bl   0x7100e698a0  sead::Framework::RunArg
+    blr  ----------  <indirect — unresolved>
+    blr  ----------  <indirect — unresolved>
+
+==============================================================================
+0x71011f5ab4  Lp::Sys::SysInit::nninitStartup (SDK startup)
+  body: 0x71011f5ab4 .. 0x71011f5b20  (108 bytes)
+  4 branch instructions decoded
+    bl   0x71014141e8  nn::os::QueryMemoryInfo
+    bl   0x71014141f8  nn::os::SetMemoryHeapSize
+    bl   0x7101413ec8  nn::os::AllocateMemoryBlock
+    bl   0x7100dda018  nn::init::InitializeAllocator
+
+==============================================================================
+0x71011fca28  Lp::Sys::RootTask::parallelInitThreadFunc
+  body: 0x71011fca28 .. 0x71011fcadc  (180 bytes)
+  7 branch instructions decoded
+    bl   0x710000dbec  sead::FormatFixedSafeString
+    blr  ----------  <indirect — unresolved>
+    bl   0x71011f603c  Lp::Sys::SysInit::printFromStartTime
+    blr  ----------  <indirect — unresolved>
+    bl   0x710000dbec  sead::FormatFixedSafeString
+    blr  ----------  <indirect — unresolved>
+    bl   0x71011f603c  Lp::Sys::SysInit::printFromStartTime
+
+==============================================================================
+0x71011fcadc  Lp::Sys::RootTask::createParallelInitThread
+  body: 0x71011fcadc .. 0x71011fcb44  (104 bytes)
+  1 branch instructions decoded
+    bl   0x710123d4a0  Lp::Sys::WorkerThreadMgr::createWorker
+
+==============================================================================
+0x71011fcb44  Lp::Sys::RootTask::runParallelInitThread
+  body: 0x71011fcb44 .. 0x71011fcba4  (96 bytes)
+  2 branch instructions decoded
+    bl   0x710123d1a8  Lp::Sys::WorkerThreadMgr::enqueue
+    b    0x710123d8c0  Lp::Sys::WorkerThreadMgr::run
+
+==============================================================================
+0x71011fcba4  Lp::Sys::RootTask::waitDoneParallelInitThread
+  body: 0x71011fcba4 .. 0x71011fcbdc  (56 bytes)
+  1 branch instructions decoded
+    bl   0x71012cdf50  Lp::Utl::sleepCurThreadMilliSec
+
+==============================================================================
+0x7100053a8c  Lp::Sys::Scene::sceneCalc
+  body: 0x7100053a8c .. 0x7100053a90  (4 bytes)
+  0 branch instructions decoded
+
+==============================================================================
+0x7100096838  Lp::Sys::CalcInGSysCalc
+  body: 0x7100096838 .. 0x7100096894  (92 bytes)
+  3 branch instructions decoded
+    bl   0x71011f3ebc  Lp::Sys::CalcInGSysCalcMgr::erase
+    bl   0x7100e98d5c  sead::Event
+    b    0x7100e765e0  sead::IDisposer
+
+==============================================================================
+CONSOLIDATED CALLEES: 34 distinct named targets
+
+by subsystem:
+  Lp::Sys  (9)
+     0x71011f3774  Lp::Sys::getCpCallbackSeadAssert
+     0x71011f4ffc  Lp::Sys::HeapGroup::createInstance
+     0x71011f5130  Lp::Sys::HeapGroup::createHeap
+     0x71011f44e4  Lp::Sys::Framework
+     0x71011f603c  Lp::Sys::SysInit::printFromStartTime
+     0x710123d4a0  Lp::Sys::WorkerThreadMgr::createWorker
+     0x710123d1a8  Lp::Sys::WorkerThreadMgr::enqueue
+     0x710123d8c0  Lp::Sys::WorkerThreadMgr::run
+     0x71011f3ebc  Lp::Sys::CalcInGSysCalcMgr::erase
+  nn::os  (4)
+     0x7101412298  nn::os::GetSystemTick
+     0x71014141e8  nn::os::QueryMemoryInfo
+     0x71014141f8  nn::os::SetMemoryHeapSize
+     0x7101413ec8  nn::os::AllocateMemoryBlock
+  Lp::Utl  (3)
+     0x71012cdbf4  Lp::Utl::dumpDateTime
+     0x71012cdccc  Lp::Utl::dumpMemoryInfo
+     0x71012cdf50  Lp::Utl::sleepCurThreadMilliSec
+  sead::Framework  (2)
+     0x7100e69894  sead::Framework::InitializeArg
+     0x7100e698a0  sead::Framework::RunArg
+  sead::GameFrameworkNx  (2)
+     0x7100e6724c  sead::GameFrameworkNx::initialize
+     0x7100e6738c  sead::GameFrameworkNx::initializeGraphicsSystem
+  sead::AssertConfig  (1)
+     0x7101397fac  sead::AssertConfig::registerCallback
+  sead::ForegroundBucketMgr  (1)
+     0x710139fb3c  sead::ForegroundBucketMgr::initialize
+  _ZnamPN4sead4HeapEi  (1)
+     0x7100e56310  _ZnamPN4sead4HeapEi
+  _ZdaPv  (1)
+     0x7100e565b0  _ZdaPv
+  sead::ExpHeap  (1)
+     0x7100e76784  sead::ExpHeap::create
+  _ZnwmPN4sead4HeapEi  (1)
+     0x7100e5629c  _ZnwmPN4sead4HeapEi
+  _ZNK4sead22BufferedSafeStringBaseIcE22assureTerminationImpl_Ev  (1)
+     0x7100e84ccc  _ZNK4sead22BufferedSafeStringBaseIcE22assureTerminationImpl_Ev
+  sead::BufferedSafeStringBase  (1)
+     0x7100e851d0  sead::BufferedSafeStringBase
+  nn::nifm  (1)
+     0x7101413268  nn::nifm::Initialize
+  sead::TaskBase  (1)
+     0x7100e6b7bc  sead::TaskBase::MgrTaskArg
+  nn::init  (1)
+     0x7100dda018  nn::init::InitializeAllocator
+  sead::FormatFixedSafeString  (1)
+     0x710000dbec  sead::FormatFixedSafeString
+  sead::Event  (1)
+     0x7100e98d5c  sead::Event
+  sead::IDisposer  (1)
+     0x7100e765e0  sead::IDisposer
