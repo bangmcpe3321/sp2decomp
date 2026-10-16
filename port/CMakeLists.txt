@@ -45,6 +45,11 @@ if(SP2PORT_BUILD_TESTS)
   target_link_libraries(boot_integration PRIVATE nnos)
   add_test(NAME boot_sequence COMMAND boot_integration)
 
+  # Diagnostic: prints candidate struct offsets so decompile-derived layouts can be
+  # matched empirically instead of guessed. Not a test.
+  add_executable(layout_probe tests/layout_probe.cpp)
+  target_link_libraries(layout_probe PRIVATE nnos)
+
   # The first RECONSTRUCTED ENGINE functions (ports of decompiled bodies).
   add_executable(engine_tests tests/engine_tests.cpp)
   target_link_libraries(engine_tests PRIVATE nnos)
