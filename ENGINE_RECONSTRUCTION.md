@@ -139,17 +139,38 @@ is recorded here so the gap is not surprising.
 | `Lp::Utl::dumpDateTime` | **ported** (`port/src/utl.cpp`) |
 | `nn::os::GetSystemTick` | **ported** (platform layer) |
 | `sead::AssertConfig::registerCallback` | **ported** (`port/src/delegate_event.cpp`) |
-| `sead::Framework::InitializeArg::InitializeArg` | not ported |
-| `sead::GameFrameworkNx::initialize` | not ported |
-| `Lp::Utl::dumpMemoryInfo` | **ported**, but unreachable until the above land |
+| `sead::Framework::InitializeArg::InitializeArg` | **ported** (`port/src/framework_args.cpp`) — step 4 |
+| `sead::GameFrameworkNx::initialize` | **next** — a wrapper over two *unported* calls |
+| `Lp::Utl::dumpMemoryInfo` | **ported**, but unreachable until the above lands |
 | `sead::ForegroundBucketMgr::initialize` | not ported |
 | `HeapGroup::createInstance` / `createHeap` | not ported |
 | `Framework::Framework` | not ported |
 | `sead::GameFrameworkNx::initializeGraphicsSystem` | not ported |
 | `sead::TaskBase::MgrTaskArg::MgrTaskArg` | not ported |
-| `sead::Framework::RunArg::RunArg` | not ported |
+| `sead::Framework::RunArg::RunArg` | **ported** (`port/src/framework_args.cpp`) |
 
-**Supporting primitives ported:** `sead::ListNode` (`insertFront_`, `insertBack_`,`n`erase_`), `sead::DateTime`/`CalendarTime`, and `sead::DelegateEvent`/`Slot`.
+**Supporting primitives ported:** `sead::ListNode` (`insertFront_`, `insertBack_`,
+`erase_`), `sead::DateTime`/`CalendarTime`, `sead::DelegateEvent`/`Slot`, and
+`sead::Framework::InitializeArg`/`RunArg`.
+
+### Why the next step is a jump in difficulty, not a small one
+
+`sead::GameFrameworkNx::initialize` (`0x7100e6724c`) decompiles to just:
+
+```c
+void sead::GameFrameworkNx::initialize(InitializeArg const& arg) {
+    GameFramework::initialize(arg);      // NOT ported
+    PerformanceMgrNx::initialize();      // NOT ported
+}
+```
+
+**Porting this wrapper would gain nothing observable.** The runner would advance one line
+and stop at `GameFramework::initialize`, which is a large subsystem — heap, task manager
+and graphics set-up behind it — not a single function.
+
+That is a genuine step change. The first four dependencies were small and self-contained;
+this one opens a subtree. Recorded so the next round starts with the right expectation
+rather than assuming the same rate continues.
 
 ## 6. Honest scale statement
 

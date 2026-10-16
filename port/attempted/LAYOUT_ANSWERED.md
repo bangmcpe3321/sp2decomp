@@ -1,5 +1,10 @@
 # registerCallback: the layout question is ANSWERED
 
+> **Superseded in part.** `registerCallback` was successfully ported in round 6 — see
+> `port/src/delegate_event.cpp`. It is `DelegateEvent::connect` plus a thin wrapper. This
+> document is retained because the *reasoning* about the layout, and the note about the
+> reference being consulted late, remain useful.
+
 Supersedes the "what defeated it" section of the disposition note below. The reference
 was consulted this time, and it resolves the ambiguity.
 
