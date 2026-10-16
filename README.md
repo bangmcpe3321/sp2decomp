@@ -8,6 +8,10 @@ This repository documents what was established about the module's **structure,
 architecture and subsystem layout**, together with the scripts used to establish
 it. It is a research log, not a finished decompilation.
 
+> **Porting to PC?** See **[PORTING.md](PORTING.md)** for the scope assessment and
+> build-order roadmap, and [`subsystem-map.txt`](subsystem-map.txt) for the full
+> 109-subsystem breakdown.
+
 ---
 
 ## Status
@@ -306,6 +310,7 @@ placeholders and must not be interpreted as code sizes.
 ```bash
 node tools/static/analyze-inventory.mjs inventory.txt
 node tools/static/namespace-report.mjs   inventory.txt
+node tools/static/subsystem-map.mjs      inventory.txt subsystem-map.txt
 node tools/static/symbol-census.mjs      main.decompressed
 node tools/static/check-prologue.mjs     main.decompressed
 ```
