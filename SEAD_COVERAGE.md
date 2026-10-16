@@ -172,6 +172,15 @@ path. `GameFrameworkNx`, `GraphicsNvn`, `PerformanceMgrNx` and `ForegroundBucket
 must be reconstructed from the binary — and those are exactly the functions
 [BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md) puts on the critical path to the first frame.
 
+> **Partial correction.** This section originally concluded *"expect to write the
+> entire graphics bring-up path yourself."* That holds for `sead`'s own graphics
+> classes, but it over-stated the problem for the stack beneath them. NVN turns out
+> to be a single dispatch table, and `nn::gfx` has a reference implementation in
+> the companion repository `open-ead/nnsdk`. See
+> **[GRAPHICS_NVN.md](GRAPHICS_NVN.md)** for the corrected picture — the
+> reference-free layers are `nn::g3d` (292 functions) and `agl` (2,852), not the
+> whole graphics path.
+
 **Three caveats to settle before relying on it:**
 
 1. **License.** No license file in the repository. Resolve before reusing code.
