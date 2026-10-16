@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[NVN_DEVICE_CREATION.md](NVN_DEVICE_CREATION.md)** - the device-creation path FINALLY located: nvnBootstrapLoader resolves NVN by NAME, which is why every static scan failed.
 - **[PATH_A_DEVICE_API.md](PATH_A_DEVICE_API.md)** - nn::gfx's public device type is a template family with no out-of-line symbols, and a third failed decoder.
 - **[DEVICE_INIT_CALLER_SEARCH.md](DEVICE_INIT_CALLER_SEARCH.md)** - the search for DeviceImpl::Initialize's caller, which FAILED, and why scanning beats reading no further.
 - **[DEVICE_IMPL_INITIALIZE.md](DEVICE_IMPL_INITIALIZE.md)** - where the NVN device is actually created, and a correction to NVN_BOOT_SUBSET's lower bound.

@@ -6,6 +6,14 @@ find what calls `DeviceImpl<4,8>::Initialize` (`0x710135d8d8`). This is the resu
 
 ---
 
+> **RESOLVED.** The device-creation path was located in
+> [NVN_DEVICE_CREATION.md](NVN_DEVICE_CREATION.md): it is **inside `initializeGraphicsSystem`
+> itself**, via `nvnBootstrapLoader("nvnDeviceInitialize")`. NVN is resolved **by name at
+> runtime**, so there was never a symbol for any scan to find — which is why the searches in this
+> document and in DEVICE_INIT_CALLER_SEARCH.md all returned null. The structural findings below
+> (the template family, the absent `TDevice` symbols) remain correct and are part of the
+> explanation.
+
 ## 1. There is no `nn::gfx::Device`
 
 Searching the symbol table for `_ZN2nn3gfx6Device` returns **zero results**. The public device
