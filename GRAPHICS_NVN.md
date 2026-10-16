@@ -59,7 +59,31 @@ Note the `-api.nvn.8` suffixes: these target **NVN API version 8** on Horizon.
 
 ---
 
-## 2. Verified against the binary: NVN is a dispatch table
+## 2. Verified against the binary: NVN is a RESOLVER
+
+> **CORRECTED.** This section previously described NVN as "a Vulkan-style loader API: the single
+> bootstrapping entry point returns a struct of function pointers". The decompiled body of
+> `nvnLoadCProcs` (`0x7100ddd6e4`, **12,712 bytes**) shows something different: it is a
+> **`GetProcAddress`-style resolver** that looks up each function BY NAME and stores it in a
+> named global.
+>
+> ```c
+> void nvnLoadCProcs(void* device, void* (*getProcAddress)(void*, const char*)) {
+>     PTR_pfnc_nvnDeviceBuilderSetDefaults = getProcAddress(device, "nvnDeviceBuilderSetDefaults");
+>     PTR_pfnc_nvnDeviceBuilderSetFlags    = getProcAddress(device, "nvnDeviceBuilderSetFlags");
+>     ...
+> }
+> ```
+>
+> **The measured surface is 453 functions.** Three independent counts agree: 453 distinct
+> `nvn*` string literals, 453 distinct destination globals, 453 resolver call sites. Grouped:
+> Command 130, Texture 90, Sampler 45, Device 25, Queue 24, Multisample 23, Memory 17,
+> Buffer 17, Window 16, Blend 15, Depth 13, Vertex 10, Polygon 9, Color 7, Program 5, Sync 4,
+> Channel 3.
+>
+> The effect on the port is favourable — the names ARE the interface, they are all present in
+> the binary, and they can be counted rather than guessed. It also means no external reference
+> (such as `nnsdk`) is needed to establish the surface.
 
 Checking `main`'s own symbol table for NVN:
 

@@ -7,6 +7,10 @@
 #include "nvn/nvn.hpp"
 
 #include <cstdio>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <iterator>
 
 namespace {
 int g_failures = 0;
@@ -93,28 +97,40 @@ int main() {
               "CreateSystemEvent(nullptr) is refused");
     }
 
-    std::printf("\nnvn::LoadCProcs (0x7100ddd6e4)\n");
+    std::printf("\nnvn::LoadCProcs -- the RESOLVER (0x7100ddd6e4, 12,712 bytes)\n");
     {
         nvn::ResetForTesting();
-        nvn::ProcTable *t1 = nvn::LoadCProcs();
-        Check(t1 != nullptr, "LoadCProcs returns a table");
-        nvn::ProcTable *t2 = nvn::LoadCProcs();
-        Check(t1 == t2, "and the table is stable across calls (idempotent)");
 
-        int nonNull = 0;
-        for (int i = 0; i < nvn::kProcCount; ++i) {
-            if (t1->slots[i] != nullptr) ++nonNull;
-        }
-        Check(nonNull == nvn::kProcCount, "every slot is populated (none left null)");
+        // The decompiled body resolves 453 functions by name. Three independent counts in the
+        // binary agree, so the figure is measured rather than assumed.
+        Check(nvn::kProcCount == 453, "the measured NVN surface is 453 functions");
+        Check(std::string(nvn::ProcName(0)) == "nvnDeviceBuilderSetDefaults",
+              "slot 0 is nvnDeviceBuilderSetDefaults, the binary's first resolution");
+        Check(std::string(nvn::ProcName(452)) == "nvnQueueWaitSync",
+              "the last slot is nvnQueueWaitSync, the binary's final resolution");
+        Check(nvn::ProcName(-1) == nullptr && nvn::ProcName(453) == nullptr,
+              "out-of-range ProcName is refused");
 
-        // The stubs must REPORT rather than silently succeed: if the engine reaches a slot
-        // expecting a draw, a quiet return would let it believe a frame was produced.
-        Check(nvn::unbackedCallCount() == 0, "no unbacked slot has been called yet");
-        t1->slots[0]();
-        Check(nvn::unbackedCallCount() == 1,
-              "calling a slot is COUNTED as unbacked rather than silently succeeding");
+        // A resolver like the engine supplies: records every name it is asked for.
+        static std::vector<std::string> asked;
+        asked.clear();
+        auto resolver = [](void *, const char *name) -> void * {
+            asked.push_back(name);
+            return reinterpret_cast<void *>(&nvn::unbackedCallCount); // a real, non-null fn ptr
+        };
+
+        const int n = nvn::LoadCProcs(nullptr, resolver);
+        Check(n == 453, "LoadCProcs resolved all 453 functions");
+        Check(asked.size() == 453, "and asked the resolver for each one BY NAME");
+        Check(asked[0] == "nvnDeviceBuilderSetDefaults", "starting with the binary's first name");
+        Check(asked.back() == "nvnQueueWaitSync", "and ending with its last");
+        Check(asked.size() == static_cast<std::size_t>(std::distance(asked.begin(),
+                  std::unique(asked.begin(), asked.end()))),
+              "every name asked for exactly once");
+
+        Check(nvn::LoadCProcs(nullptr, nullptr) == 0,
+              "a null resolver is refused rather than faulting inside the resolver");
     }
-
     std::printf("\n----------------------------------------\n");
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

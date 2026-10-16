@@ -15,6 +15,7 @@ add_library(nnos STATIC
   src/services.cpp
   src/vi.cpp
   src/nvn.cpp
+  src/nvn_names.cpp
   src/init.cpp
   src/date_time.cpp
   src/utl.cpp
