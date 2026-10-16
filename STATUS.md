@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[GRAPHICS_SCOPE.md](GRAPHICS_SCOPE.md)** - the graphics subsystem: a six-function display boundary, and a large partly reference-free renderer behind it.
 - **[HEAP_INTERFACE.md](HEAP_INTERFACE.md)** - the sead::Heap vtable (27 virtual functions), which is the interface a host-backed heap must provide.
 - **[HEAP_LAYER_SCOPE.md](HEAP_LAYER_SCOPE.md)** - whether the heap layer is a wall, and the interface-over-host-allocator route around it.
 - **[GAMEFRAMEWORK_SCOPE.md](GAMEFRAMEWORK_SCOPE.md)** - whether the next engine step is a wall or a tree, with the subtree mapped.
