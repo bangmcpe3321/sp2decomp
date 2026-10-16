@@ -114,10 +114,11 @@ which throws `MissingEngineDependency` carrying **the name and the address**.
 functions and stopping at the first gap. The current run reports, truthfully:
 
 ```
-reconstructed steps completed: 2
+reconstructed steps completed: 3
   [1] Lp::Utl::dumpDateTime(" Application Start Time")
   [2] nn::os::GetSystemTick -> sRunStartTime
-STOPPED AT: sead::AssertConfig::registerCallback (0x7101397fac)
+  [3] sead::AssertConfig::registerCallback
+STOPPED AT: sead::Framework::InitializeArg::InitializeArg (0x7100e69894)
 ```
 
 **That output is the progress metric.** It is a statement of how far the reconstruction
@@ -137,7 +138,7 @@ is recorded here so the gap is not surprising.
 |---|---|
 | `Lp::Utl::dumpDateTime` | **ported** (`port/src/utl.cpp`) |
 | `nn::os::GetSystemTick` | **ported** (platform layer) |
-| `sead::AssertConfig::registerCallback` | **not ported** — needs a `DelegateEvent`/`Slot` model; list primitive done |
+| `sead::AssertConfig::registerCallback` | **ported** (`port/src/delegate_event.cpp`) |
 | `sead::Framework::InitializeArg::InitializeArg` | not ported |
 | `sead::GameFrameworkNx::initialize` | not ported |
 | `Lp::Utl::dumpMemoryInfo` | **ported**, but unreachable until the above land |
@@ -148,8 +149,7 @@ is recorded here so the gap is not surprising.
 | `sead::TaskBase::MgrTaskArg::MgrTaskArg` | not ported |
 | `sead::Framework::RunArg::RunArg` | not ported |
 
-**Supporting primitives ported:** `sead::ListNode` (`insertFront_`, `insertBack_`,
-`erase_`) and `sead::DateTime`/`CalendarTime`.
+**Supporting primitives ported:** `sead::ListNode` (`insertFront_`, `insertBack_`,`n`erase_`), `sead::DateTime`/`CalendarTime`, and `sead::DelegateEvent`/`Slot`.
 
 ## 6. Honest scale statement
 

@@ -8,6 +8,7 @@
 
 #include "lp/recon.hpp"
 #include "lp/utl.hpp"
+#include "sead/delegate_event.hpp"
 #include "nn/os.hpp"
 
 #include <cstdio>
@@ -89,11 +90,12 @@ void SequenceBody(Runner &r) {
     });
 
     // --- step 3: sead::AssertConfig::registerCallback ------------------------------
-    // A port of 0x7101397fac exists (port/src/assert_config.cpp) but is deliberately not
-    // called from the sequence yet: its field layout could not be reconciled with the
-    // decompiled offsets (see docs/ENGINE_RECONSTRUCTION.md), so declaring it missing is
-    // the honest choice over calling a port whose layout is unverified.
-    r.missing("sead::AssertConfig::registerCallback", kAssertRegisterCallback);
+    // Now ported (port/src/delegate_event.cpp) against sead's real DelegateEvent, so this
+    // RUNS rather than stopping the sequence.
+    r.step("sead::AssertConfig::registerCallback", [] {
+        static sead::DelegateEventSlot sAssertSlot;
+        sead::AssertConfig::registerCallback(sAssertSlot);
+    });
 
     // --- step 4: sead::Framework::InitializeArg::InitializeArg ---------------------
     r.missing("sead::Framework::InitializeArg::InitializeArg", kInitializeArgCtor);

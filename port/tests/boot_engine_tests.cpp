@@ -45,11 +45,17 @@ int main() {
                 static_cast<unsigned long long>(result.stoppedAtAddress));
 
     // The stop must be at the FIRST unported dependency in boot order, not an arbitrary
-    // one. sead::AssertConfig::registerCallback is the first after dumpDateTime and
-    // GetSystemTick, both of which are ported.
-    Check(result.stoppedAt.find("registerCallback") != std::string::npos,
+    // one. Update this whenever a dependency lands: the assertion is what makes the stop
+    // point trustworthy, and it FAILING on progress is the intended behaviour — it forces
+    // the new boundary to be stated explicitly rather than drifting.
+    //
+    // History: first stop was sead::AssertConfig::registerCallback (round 3).
+    //          It is now ported, so the first gap moved to InitializeArg (round 6).
+    Check(result.stoppedAt.find("InitializeArg") != std::string::npos,
           "it stopped at the FIRST unported dependency in boot order "
-          "(sead::AssertConfig::registerCallback)");
+          "(sead::Framework::InitializeArg::InitializeArg)");
+    Check(result.completed.size() == 3,
+          "exactly the three ported boot-root steps ran before the gap");
 
     // Every completed step must be a real reconstructed function, not a placeholder.
     for (const auto &step : result.completed) {
