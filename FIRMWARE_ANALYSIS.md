@@ -94,24 +94,60 @@ before investing further.
    lesson is that `nso2elf.mjs` already parses this correctly and is the reference — the
    independent parse was unnecessary work that produced misleading intermediate output.
 
-## 6. Routes that remain, honestly assessed
+## 6. The `.dynsym` route was attempted and stopped
+
+The last untried symbol route was to parse a sysmodule's NSO `.dynsym`. It was attempted
+and **not completed**, and the reason is worth recording precisely.
+
+**Attempted:** a standalone parser (`tools/static/nso-dynsym.mjs`) to read the NSO header,
+locate MOD0, follow `DynamicOffset`, and walk `DT_SYMTAB` / `DT_STRTAB`.
+
+**Three failed attempts at the header layout.** Each version produced different field
+mappings for the same bytes, and the MOD0 lookup landed on zeroed data:
+
+```
+=== NSO header fields 0x00..0x40 ===   (raw values, stable across attempts)
+  0x10  00000100   0x14  00000000   0x18  00378758
+  0x1c  00000100   0x20  00379100   0x24  00379000
+  0x28  000f6f98   0x2c  00000000   0x30  00470100
+  0x34  00470000   0x38  0006339c   0x3c  0007fc64
+```
+
+`MOD0` does exist — a byte scan found it at file `0x379168` — but computing that offset
+from the header fields is what I kept getting wrong, and the parse consequently read
+zeroed memory and found no `DT_SYMTAB`.
+
+**The lesson, and why this stops here.** `nso2elf.mjs` **already parses this format
+correctly**: it converted this very file to a VALID ELF with the right section layout and
+`367 MOD0 function symbols` on the game's `sdk`. Writing an independent parser was
+unnecessary work. The right move is to **extend the existing converter**, not to
+reimplement its header logic alongside it — and that is a bounded, well-scoped task for a
+future round rather than something to keep improvising.
+
+## 7. Routes that remain, honestly assessed
 
 | Route | Assessment |
 |---|---|
-| **NSO `.dynsym` parsing** | The one untried route that could yield real names for a *sysmodule* (as opposed to `ro`, which exposes function pointers instead). Worth one attempt. |
-| **Behavioural markers + Ghidra containment** | Worked for `main` when Ghidra had boundaries; needs the module to be analysable and yields families, not identities. |
+| **Extend `nso2elf.mjs` to emit `.dynsym`** | The correct next step. It already locates MOD0 and walks the export table; exposing the symbols it finds is a small change to code that is known to work. |
+| **Behavioural markers + Ghidra containment** | Worked for `main` when Ghidra supplied boundaries. Yields function *families*, not identities. |
 | **Vendor SDK symbol files** | Would settle everything directly. Not available here. |
 | **Runtime observation** | The only route that would *prove* which function the loader binds. Needs an emulator and is a much larger undertaking. |
 
-## 7. Bottom line
+## 8. Bottom line
 
 **Gained:** firmware is downloadable, decryptable, extractable, and compatible with the
 pipeline built earlier in this project. The blocker that stopped the previous round is
 resolved.
 
 **Not gained:** identification of `nn::os` within it. The system modules are stripped, so the
-symbol-based approach that named 113,150 functions in the game's `main` does not transfer.
+symbol-based approach that named 113,150 functions in the game's `main` does not transfer —
+and the `.dynsym` route that might recover names was attempted but stopped, for the reason
+recorded above.
 
 **Unchanged:** the port's platform layer remains a reconstruction validated against observed
 call sites ([PLATFORM_IMPLEMENTATION_SPEC.md](PLATFORM_IMPLEMENTATION_SPEC.md)), not a port of
 recovered vendor code. Nothing in this work changes that conclusion yet.
+
+**What I would do differently:** on first seeing that the header fields did not match my
+assumptions, the correct response was to read `nso2elf.mjs` and reuse its layout — not to
+re-derive the format from raw bytes three times. The converter was working the whole time.
