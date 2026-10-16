@@ -1,5 +1,7 @@
 # sp2decomp
 
+**English** · [Tiếng Việt](README_vi.md)
+
 Reverse-engineering research notes and tooling for the Nintendo Switch executable
 `main` of **Splatoon 2** (USA), specifically the retail build whose ExeFS lives in
 the `Splatoon 2 USA.xci` dump.
@@ -9,9 +11,6 @@ architecture and subsystem layout**, together with the scripts used to establish
 it. It is a research log, not a finished decompilation.
 
 > **Porting to PC?** See **[PORTING.md](PORTING.md)** for scope, **[BOOT_MILESTONE.md](BOOT_MILESTONE.md)** for the narrowed target, **[BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md)** for the decoded startup chain, **[SEAD_COVERAGE.md](SEAD_COVERAGE.md)** for what the existing sead decompilation covers, **[GRAPHICS_NVN.md](GRAPHICS_NVN.md)** for how NVN dispatch makes the GPU layer tractable, **[NNWARE_COVERAGE.md](NNWARE_COVERAGE.md)** for NintendoWare (`g3d`/`ui2d`/`atk`/`vfx`/`font`) header coverage, **[AGL_COVERAGE.md](AGL_COVERAGE.md)** for `agl` graphics/lighting/AAMP, **[ECOSYSTEM.md](ECOSYSTEM.md)** for a complete survey of all 16 `open-ead` repositories, **[VERIFICATION.md](VERIFICATION.md)** for layout verification against the binary, and **[PORT_WORKLIST.md](PORT_WORKLIST.md)** for the concrete boot implementation worklist. Full 109-subsystem breakdown in [subsystem-map.txt](subsystem-map.txt).
-> build-order roadmap, and **[BOOT_MILESTONE.md](BOOT_MILESTONE.md)** for the
-> narrow "boot to main menu" target. The full 109-subsystem breakdown is in
-> [`subsystem-map.txt`](subsystem-map.txt).
 
 ---
 
