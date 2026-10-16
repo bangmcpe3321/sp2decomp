@@ -1,0 +1,455 @@
+Boot dependency closure (BFS over decoded ARM64 call graph)
+roots: 6   max depth: 7   nodes: 232
+
+Reachability by depth from the boot roots:
+  depth 0: 6 functions
+  depth 1: 34 functions
+  depth 2: 62 functions
+  depth 3: 71 functions
+  depth 4: 29 functions
+  depth 5: 11 functions
+  depth 6: 16 functions
+  depth 7: 3 functions
+
+Closure composition by top-level namespace:
+     94  sead
+     49  <no symbol>
+     46  nn
+     22  Lp
+      3  nv
+      1  _ZnamPN4sead4HeapEi
+      1  _ZdaPv
+      1  _ZnwmPN4sead4HeapEi
+      1  _ZNK4sead22BufferedSafeStringBaseIcE22assureTerminationImpl_Ev
+      1  _ZNK4sead8DateTime15getCalendarTimeEPNS_12CalendarTimeE
+      1  _ZNK4sead7HeapMgr14getCurrentHeapEv
+      1  malloc
+      1  _ZNK4sead7HeapMgr15findContainHeapEPKv
+      1  free
+      1  nvnBootstrapLoader
+      1  nvnLoadCProcs
+      1  __cxa_guard_acquire
+      1  __cxa_guard_release
+      1  __errno_location
+      1  memcpy
+      1  memset
+      1  memmove
+      1  _ZnamPN4sead4HeapEiRKSt9nothrow_t
+
+==============================================================================
+DEPTH 0  (6 functions)
+
+  Lp::Sys  (6)
+     0x71011f5ab4  Lp::Sys::SysInit::nninitStartup  [108B, 4 calls]
+     0x71011f5b20  Lp::Sys::SysInit::Init  [1308B, 27 calls, 10 indirect]
+     0x71011fca28  Lp::Sys::RootTask::parallelInitThreadFunc  [180B, 4 calls, 3 indirect]
+     0x71011fcadc  Lp::Sys::RootTask::createParallelInitThread  [104B, 1 calls]
+     0x71011fcb44  Lp::Sys::RootTask::runParallelInitThread  [96B, 2 calls]
+     0x71011fcba4  Lp::Sys::RootTask::waitDoneParallelInitThread  [56B, 1 calls]
+
+==============================================================================
+DEPTH 1  (34 functions)
+
+  Lp::Sys  (8)
+     0x71011f3774  Lp::Sys::getCpCallbackSeadAssert  [12B, 0 calls]
+     0x71011f4ffc  Lp::Sys::HeapGroup::createInstance  [160B, 4 calls]
+     0x71011f5130  Lp::Sys::HeapGroup::createHeap  [508B, 11 calls]
+     0x71011f44e4  Lp::Sys::Framework  [108B, 2 calls]
+     0x71011f603c  Lp::Sys::SysInit::printFromStartTime  [424B, 4 calls]
+     0x710123d4a0  Lp::Sys::WorkerThreadMgr::createWorker  [132B, 3 calls]
+     0x710123d1a8  Lp::Sys::WorkerThreadMgr::enqueue  [88B, 2 calls]
+     0x710123d8c0  Lp::Sys::WorkerThreadMgr::run  [64B, 0 calls]
+  nn::os  (4)
+     0x71014141e8  nn::os::QueryMemoryInfo  [16B, 0 calls]
+     0x71014141f8  nn::os::SetMemoryHeapSize  [16B, 0 calls]
+     0x7101413ec8  nn::os::AllocateMemoryBlock  [16B, 0 calls]
+     0x7101412298  nn::os::GetSystemTick  [16B, 0 calls]
+  Lp::Utl  (3)
+     0x71012cdbf4  Lp::Utl::dumpDateTime  [216B, 5 calls]
+     0x71012cdccc  Lp::Utl::dumpMemoryInfo  [408B, 7 calls]
+     0x71012cdf50  Lp::Utl::sleepCurThreadMilliSec  [48B, 1 calls]
+  <no symbol>  (3)
+     0x71011f5bd0  <no symbol>  [1132B, 18 calls, 9 indirect]
+     0x71011f5c08  <no symbol>  [1076B, 16 calls, 9 indirect]
+     0x71011f5e8c  <no symbol>  [432B, 4 calls, 3 indirect]
+  sead::Framework  (2)
+     0x7100e69894  sead::Framework::InitializeArg  [12B, 0 calls]
+     0x7100e698a0  sead::Framework::RunArg  [12B, 0 calls]
+  sead::GameFrameworkNx  (2)
+     0x7100e6724c  sead::GameFrameworkNx::initialize  [20B, 2 calls]
+     0x7100e6738c  sead::GameFrameworkNx::initializeGraphicsSystem  [2372B, 46 calls, 47 indirect]
+  nn::init  (1)
+     0x7100dda018  nn::init::InitializeAllocator  [80B, 2 calls]
+  sead::AssertConfig  (1)
+     0x7101397fac  sead::AssertConfig::registerCallback  [160B, 3 calls]
+  sead::ForegroundBucketMgr  (1)
+     0x710139fb3c  sead::ForegroundBucketMgr::initialize  [4B, 0 calls]
+  _ZnamPN4sead4HeapEi  (1)
+     0x7100e56310  _ZnamPN4sead4HeapEi  [116B, 2 calls]
+  _ZdaPv  (1)
+     0x7100e565b0  _ZdaPv  [100B, 2 calls]
+  sead::ExpHeap  (1)
+     0x7100e76784  sead::ExpHeap::create  [8B, 1 calls]
+  _ZnwmPN4sead4HeapEi  (1)
+     0x7100e5629c  _ZnwmPN4sead4HeapEi  [116B, 2 calls]
+  _ZNK4sead22BufferedSafeStringBaseIcE22assureTerminationImpl_Ev  (1)
+     0x7100e84ccc  _ZNK4sead22BufferedSafeStringBaseIcE22assureTerminationImpl_Ev  [20B, 0 calls]
+  sead::BufferedSafeStringBase  (1)
+     0x7100e851d0  sead::BufferedSafeStringBase  [300B, 3 calls, 1 indirect]
+  nn::nifm  (1)
+     0x7101413268  nn::nifm::Initialize  [16B, 0 calls]
+  sead::TaskBase  (1)
+     0x7100e6b7bc  sead::TaskBase::MgrTaskArg  [308B, 2 calls]
+  sead::FormatFixedSafeString  (1)
+     0x710000dbec  sead::FormatFixedSafeString  [224B, 2 calls]
+
+==============================================================================
+DEPTH 2  (62 functions)
+
+  <no symbol>  (8)
+     0x7100e67518  <no symbol>  [1976B, 31 calls, 44 indirect]
+     0x7100e675f8  <no symbol>  [1752B, 28 calls, 39 indirect]
+     0x7100e67618  <no symbol>  [1720B, 27 calls, 39 indirect]
+     0x7100e852a0  <no symbol>  [92B, 1 calls]
+     0x7100e6b864  <no symbol>  [140B, 1 calls]
+     0x7100e6b8d4  <no symbol>  [28B, 0 calls]
+     0x71011f610c  <no symbol>  [216B, 1 calls]
+     0x710123d1fc  <no symbol>  [4B, 0 calls]
+  nn::vi  (6)
+     0x7101413cf8  nn::vi::Initialize  [16B, 0 calls]
+     0x7101413d08  nn::vi::OpenDefaultDisplay  [16B, 0 calls]
+     0x7101413d18  nn::vi::CreateLayer  [16B, 0 calls]
+     0x7101413d28  nn::vi::SetLayerScalingMode  [16B, 0 calls]
+     0x7101413d38  nn::vi::GetDisplayVsyncEvent  [16B, 0 calls]
+     0x7101413d58  nn::vi::GetNativeWindow  [16B, 0 calls]
+  sead::GraphicsNvn  (5)
+     0x7100e71100  sead::GraphicsNvn::convertNvnDebugLevel  [24B, 0 calls]
+     0x7100e70d54  sead::GraphicsNvn  [192B, 4 calls]
+     0x7100e71040  sead::GraphicsNvn::registerQueue  [8B, 0 calls]
+     0x7100e71050  sead::GraphicsNvn::registerDisplayBufferNvn  [8B, 0 calls]
+     0x7100e71048  sead::GraphicsNvn::registerDefaultCommandBuffer  [8B, 0 calls]
+  Lp::Sys  (4)
+     0x71011f5908  Lp::Sys::HeapGroup::Group::text_  [428B, 11 calls, 1 indirect]
+     0x710123c29c  Lp::Sys::getThreadInfo  [384B, 3 calls, 4 indirect]
+     0x710123d588  Lp::Sys::WorkerThreadMgr::createWorker  [536B, 4 calls, 3 indirect]
+     0x710123ca44  Lp::Sys::WorkerThread::enqueue  [148B, 5 calls]
+  nn::mem  (3)
+     0x7101413038  nn::mem::StandardAllocator  [16B, 0 calls]
+     0x7101413008  nn::mem::StandardAllocator::Initialize  [16B, 0 calls]
+     0x7101413cd8  nn::mem::StandardAllocator  [16B, 0 calls]
+  sead::DisplayBufferNvn  (3)
+     0x7100e70360  sead::DisplayBufferNvn  [56B, 0 calls]
+     0x7100e70408  sead::DisplayBufferNvn::setPresentInterval  [36B, 0 calls]
+     0x7100e7042c  sead::DisplayBufferNvn::setTripleBuffer  [20B, 0 calls]
+  sead::DateTime  (2)
+     0x7100ea7934  sead::DateTime  [8B, 0 calls]
+     0x7100ea7ec4  sead::DateTime::setNow  [204B, 11 calls]
+  sead::ListNode  (2)
+     0x7100e56af4  sead::ListNode::erase_  [40B, 0 calls]
+     0x7100e56adc  sead::ListNode::insertFront_  [24B, 0 calls]
+  sead::Thread  (2)
+     0x7100e992cc  sead::Thread::setAffinity  [56B, 2 calls]
+     0x7100e99434  sead::Thread::sleep  [20B, 2 calls]
+  sead::CalendarTime  (1)
+     0x7100ea75c4  sead::CalendarTime  [116B, 1 calls]
+  _ZNK4sead8DateTime15getCalendarTimeEPNS_12CalendarTimeE  (1)
+     0x7100ea7ce4  _ZNK4sead8DateTime15getCalendarTimeEPNS_12CalendarTimeE  [480B, 11 calls]
+  nn::diag  (1)
+     0x7101412708  nn::diag::detail::LogImpl  [16B, 0 calls]
+  sead::GameFramework  (1)
+     0x7100e69fe4  sead::GameFramework::initialize  [456B, 11 calls, 6 indirect]
+  sead::PerformanceMgrNx  (1)
+     0x7100e68c44  sead::PerformanceMgrNx::initialize  [4B, 1 calls]
+  sead::IDisposer  (1)
+     0x7100e76550  sead::IDisposer  [144B, 4 calls]
+  sead::CriticalSection  (1)
+     0x7100e98ab0  sead::CriticalSection  [60B, 2 calls]
+  sead::ReadWriteLock  (1)
+     0x7100e998a8  sead::ReadWriteLock  [84B, 2 calls]
+  _ZNK4sead7HeapMgr14getCurrentHeapEv  (1)
+     0x7100e7cf7c  _ZNK4sead7HeapMgr14getCurrentHeapEv  [68B, 1 calls]
+  malloc  (1)
+     0x7100dda0c0  malloc  [72B, 2 calls]
+  _ZNK4sead7HeapMgr15findContainHeapEPKv  (1)
+     0x7100e7c8f4  _ZNK4sead7HeapMgr15findContainHeapEPKv  [504B, 15 calls, 2 indirect]
+  free  (1)
+     0x7100dda114  free  [28B, 1 calls]
+  sead::ExpHeap  (1)
+     0x7100e7678c  sead::ExpHeap::tryCreate  [696B, 19 calls, 3 indirect]
+  sead::GameFrameworkNx  (1)
+     0x7100e67260  sead::GameFrameworkNx  [224B, 5 calls]
+  nv::SetGraphicsAllocator  (1)
+     0x7101413cb8  nv::SetGraphicsAllocator  [16B, 0 calls]
+  nv::InitializeGraphics  (1)
+     0x7101413cc8  nv::InitializeGraphics  [16B, 0 calls]
+  nv::SetGraphicsDevtoolsAllocator  (1)
+     0x7101413ce8  nv::SetGraphicsDevtoolsAllocator  [16B, 0 calls]
+  nvnBootstrapLoader  (1)
+     0x7101413d48  nvnBootstrapLoader  [16B, 0 calls]
+  nvnLoadCProcs  (1)
+     0x7100ddd6e4  nvnLoadCProcs  [12712B, 0 calls, 453 indirect]
+  sead::Graphics  (1)
+     0x7100e9d0ac  sead::Graphics::initialize  [116B, 4 calls, 2 indirect]
+  __cxa_guard_acquire  (1)
+     0x7101412248  __cxa_guard_acquire  [16B, 0 calls]
+  __cxa_guard_release  (1)
+     0x7101412258  __cxa_guard_release  [16B, 0 calls]
+  sead::FrameBufferNvn  (1)
+     0x7100e6ff90  sead::FrameBufferNvn::create  [932B, 12 calls, 23 indirect]
+  sead::ThreadUtil  (1)
+     0x7100e9a2ec  sead::ThreadUtil::ConvertPrioritySeadToPlatform  [4B, 0 calls]
+  sead::DelegateThread  (1)
+     0x7100e99804  sead::DelegateThread  [92B, 1 calls]
+  sead::StringUtil  (1)
+     0x7100e8b3b8  sead::StringUtil::vsnprintf  [148B, 2 calls]
+  sead::BufferedSafeStringBase  (1)
+     0x7100e84db8  sead::BufferedSafeStringBase  [108B, 1 calls]
+
+==============================================================================
+DEPTH 3  (71 functions)
+
+  <no symbol>  (20)
+     0x7100e6a01c  <no symbol>  [400B, 9 calls, 6 indirect]
+     0x7100e765cc  <no symbol>  [20B, 0 calls]
+     0x71011f5a9c  <no symbol>  [24B, 0 calls]
+     0x71011f59e0  <no symbol>  [212B, 5 calls, 1 indirect]
+     0x71011f5a10  <no symbol>  [164B, 4 calls, 1 indirect]
+     0x7100e7ca10  <no symbol>  [220B, 6 calls, 1 indirect]
+     0x7100e7cac8  <no symbol>  [36B, 1 calls]
+     0x7100e7cad4  <no symbol>  [24B, 0 calls]
+     0x7100e767f8  <no symbol>  [588B, 17 calls, 2 indirect]
+     0x7100e76a28  <no symbol>  [28B, 0 calls]
+     0x7100e7698c  <no symbol>  [184B, 5 calls, 1 indirect]
+     0x7100e769a8  <no symbol>  [156B, 3 calls, 1 indirect]
+     0x7100e769d8  <no symbol>  [108B, 2 calls, 1 indirect]
+     0x7100e8b43c  <no symbol>  [16B, 0 calls]
+     0x710123c3f8  <no symbol>  [36B, 1 calls]
+     0x710123c400  <no symbol>  [28B, 0 calls]
+     0x710123d6b8  <no symbol>  [232B, 3 calls]
+     0x710123d6e8  <no symbol>  [184B, 2 calls]
+     0x710123cab4  <no symbol>  [36B, 1 calls]
+     0x710123cabc  <no symbol>  [28B, 1 calls]
+  sead::CalendarTime  (9)
+     0x7100ea72dc  sead::CalendarTime::Year::setValue  [8B, 0 calls]
+     0x7100ea74bc  sead::CalendarTime::Month::makeFromValueOneOrigin  [8B, 0 calls]
+     0x7100ea74c4  sead::CalendarTime::Day::setValue  [8B, 0 calls]
+     0x7100ea74cc  sead::CalendarTime::Hour::setValue  [8B, 0 calls]
+     0x7100ea74d4  sead::CalendarTime::Minute::setValue  [8B, 0 calls]
+     0x7100ea74dc  sead::CalendarTime::Second::setValue  [8B, 0 calls]
+     0x7100ea752c  sead::CalendarTime::Time  [28B, 0 calls]
+     0x7100ea74e4  sead::CalendarTime::Date  [72B, 1 calls]
+     0x7100ea7638  sead::CalendarTime::setDate  [60B, 1 calls]
+  nn::os  (6)
+     0x7101412b38  nn::os::InitializeMutex  [16B, 0 calls]
+     0x71014125e8  nn::os::GetTlsValue  [16B, 0 calls]
+     0x7101412d98  nn::os::GetThreadAvailableCoreMask  [16B, 0 calls]
+     0x7101412da8  nn::os::SetThreadCoreMask  [16B, 0 calls]
+     0x7101412c08  nn::os::ConvertToTimeSpan  [16B, 0 calls]
+     0x7101412d48  nn::os::SleepThread  [16B, 0 calls]
+  nn::time  (4)
+     0x7101413e28  nn::time::IsInitialized  [16B, 0 calls]
+     0x7101413048  nn::time::Initialize  [16B, 0 calls]
+     0x7101412eb8  nn::time::StandardUserSystemClock::GetCurrentTime  [16B, 0 calls]
+     0x7101412ec8  nn::time::ToCalendarTime  [16B, 0 calls]
+  sead::Heap  (3)
+     0x7100e7b29c  sead::Heap::appendDisposer_  [120B, 4 calls]
+     0x7100e7b388  sead::Heap::findContainHeap_  [200B, 3 calls, 3 indirect]
+     0x7100e7ada8  sead::Heap  [288B, 2 calls]
+  sead::DrawLockContext  (3)
+     0x7100eb9ed8  sead::DrawLockContext  [28B, 1 calls]
+     0x7100eb9ef8  sead::DrawLockContext::lock  [8B, 1 calls]
+     0x7100eb9f00  sead::DrawLockContext::unlock  [8B, 1 calls]
+  sead::DateUtil  (2)
+     0x7100ea8080  sead::DateUtil::calcWeekDay  [192B, 0 calls]
+     0x7100ea8038  sead::DateUtil::isLeapYear  [72B, 0 calls]
+  nn::mem  (2)
+     0x7101412ee8  nn::mem::StandardAllocator::Allocate  [16B, 0 calls]
+     0x7101412ef8  nn::mem::StandardAllocator::Free  [16B, 0 calls]
+  sead::EnumUtil  (2)
+     0x7100e7d734  sead::EnumUtil::getParseTextCS_  [116B, 4 calls]
+     0x7100e7d810  sead::EnumUtil::parseText_  [248B, 3 calls]
+  sead::CriticalSection  (2)
+     0x7100e98bd8  sead::CriticalSection::lock  [8B, 1 calls]
+     0x7100e98be8  sead::CriticalSection::unlock  [8B, 1 calls]
+  sead::DateTime  (1)
+     0x7100ea7940  sead::DateTime::setUnixTime  [248B, 4 calls]
+  sead::Framework  (1)
+     0x7100e698ac  sead::Framework::initialize  [200B, 8 calls, 1 indirect]
+  sead::HeapMgr  (1)
+     0x7100e7cfc0  sead::HeapMgr::setCurrentHeap_  [60B, 1 calls]
+  sead::ResourceMgr  (1)
+     0x7100e8f150  sead::ResourceMgr::createInstance  [128B, 3 calls]
+  sead::FileDeviceMgr  (1)
+     0x7100e64760  sead::FileDeviceMgr::createInstance  [128B, 3 calls]
+  nn::oe  (1)
+     0x71014121c8  nn::oe::Initialize  [16B, 0 calls]
+  sead::IDisposer  (1)
+     0x7100e764f0  sead::IDisposer  [96B, 2 calls]
+  sead::Semaphore  (1)
+     0x7100eba538  sead::Semaphore  [76B, 2 calls]
+  __errno_location  (1)
+     0x7101413468  __errno_location  [16B, 0 calls]
+  memcpy  (1)
+     0x7101412278  memcpy  [16B, 0 calls]
+  sead::GameFramework  (1)
+     0x7100e69c78  sead::GameFramework  [100B, 1 calls]
+  memset  (1)
+     0x7101412268  memset  [16B, 0 calls]
+  sead::Graphics  (1)
+     0x7100e9d050  sead::Graphics  [52B, 1 calls]
+  sead::GraphicsNvn  (1)
+     0x7100e71018  sead::GraphicsNvn::getNewTextureId  [24B, 0 calls]
+  sead::Thread  (1)
+     0x7100e98f50  sead::Thread  [476B, 12 calls, 1 indirect]
+  nn::util  (1)
+     0x7101412a78  nn::util::VSNPrintf  [16B, 0 calls]
+  Lp::Sys  (1)
+     0x710123c920  Lp::Sys::WorkerThread  [164B, 4 calls]
+  sead::PtrArrayImpl  (1)
+     0x7100e57814  sead::PtrArrayImpl::insert  [132B, 2 calls]
+
+==============================================================================
+DEPTH 4  (29 functions)
+
+  <no symbol>  (10)
+     0x7100e698d8  <no symbol>  [156B, 5 calls, 1 indirect]
+     0x7100e698f8  <no symbol>  [124B, 4 calls, 1 indirect]
+     0x7100e7b2d0  <no symbol>  [68B, 2 calls]
+     0x710000019c  <no symbol>  [8B, 0 calls]
+     0x7100e7d84c  <no symbol>  [188B, 2 calls]
+     0x7100e7d87c  <no symbol>  [140B, 1 calls]
+     0x7100e7d904  <no symbol>  [4B, 0 calls]
+     0x7100e7b438  <no symbol>  [24B, 0 calls]
+     0x7100e7b43c  <no symbol>  [20B, 0 calls]
+     0x7100e57874  <no symbol>  [36B, 0 calls]
+  nn::os  (5)
+     0x7101413ee8  nn::os::InitializeSemaphore  [16B, 0 calls]
+     0x7101412b48  nn::os::LockMutex  [16B, 0 calls]
+     0x7101412b68  nn::os::UnlockMutex  [16B, 0 calls]
+     0x7101412ce8  nn::os::CreateThread  [16B, 0 calls]
+     0x7101412cf8  nn::os::SetThreadName  [16B, 0 calls]
+  sead::HeapMgr  (2)
+     0x7100e7c6b8  sead::HeapMgr::initialize  [216B, 1 calls]
+     0x7100e7c4e0  sead::HeapMgr::initialize  [260B, 4 calls]
+  sead::ThreadMgr  (2)
+     0x7100e995d8  sead::ThreadMgr::createInstance  [136B, 3 calls]
+     0x7100e99eb4  sead::ThreadMgr::initialize  [4B, 1 calls]
+  sead::MessageQueue  (2)
+     0x7100eba350  sead::MessageQueue  [8B, 0 calls]
+     0x7100eba35c  sead::MessageQueue::allocate  [108B, 2 calls]
+  sead::GlobalRandom  (1)
+     0x7100ea1f54  sead::GlobalRandom::createInstance  [136B, 3 calls]
+  sead::ResourceMgr  (1)
+     0x7100e8f238  sead::ResourceMgr  [380B, 7 calls]
+  sead::FileDeviceMgr  (1)
+     0x7100e64864  sead::FileDeviceMgr  [204B, 7 calls]
+  sead::CriticalSection  (1)
+     0x7100e98aec  sead::CriticalSection  [64B, 2 calls]
+  sead::Framework  (1)
+     0x7100e696a4  sead::Framework  [60B, 0 calls]
+  sead::FindContainHeapCache  (1)
+     0x7100e7d060  sead::FindContainHeapCache  [8B, 0 calls]
+  sead::PtrArrayImpl  (1)
+     0x7100e575e0  sead::PtrArrayImpl::allocBuffer  [84B, 1 calls]
+  memmove  (1)
+     0x7101412438  memmove  [16B, 0 calls]
+
+==============================================================================
+DEPTH 5  (11 functions)
+
+  sead::ThreadMgr  (2)
+     0x7100e99e68  sead::ThreadMgr  [76B, 2 calls]
+     0x7100e996b8  sead::ThreadMgr::initMainThread_  [184B, 9 calls]
+  nn::fs  (2)
+     0x7101413c98  nn::fs::QueryMountRomCacheSize  [16B, 0 calls]
+     0x7101413ca8  nn::fs::MountRom  [16B, 0 calls]
+  sead::ExpHeap  (1)
+     0x7100e76b18  sead::ExpHeap::tryCreate  [332B, 10 calls]
+  sead::Arena  (1)
+     0x7100eb9f1c  sead::Arena::initialize  [52B, 1 calls]
+  sead::Random  (1)
+     0x7100ea202c  sead::Random::init  [96B, 1 calls]
+  sead::MainFileDevice  (1)
+     0x7100e656ac  sead::MainFileDevice  [424B, 7 calls, 2 indirect]
+  sead::FileDeviceMgr  (1)
+     0x7100e64990  sead::FileDeviceMgr::mount  [472B, 7 calls, 5 indirect]
+  nn::os  (1)
+     0x7101412c48  nn::os::InitializeMessageQueue  [16B, 0 calls]
+  _ZnamPN4sead4HeapEiRKSt9nothrow_t  (1)
+     0x7100e564d8  _ZnamPN4sead4HeapEiRKSt9nothrow_t  [116B, 2 calls]
+
+==============================================================================
+DEPTH 6  (16 functions)
+
+  <no symbol>  (8)
+     0x7100e76c50  <no symbol>  [20B, 0 calls]
+     0x7100e76bd0  <no symbol>  [148B, 5 calls]
+     0x7100e76be4  <no symbol>  [128B, 3 calls]
+     0x7100e76c14  <no symbol>  [80B, 2 calls]
+     0x7100e657e4  <no symbol>  [112B, 3 calls]
+     0x7100e64a14  <no symbol>  [340B, 6 calls, 2 indirect]
+     0x7100e64b08  <no symbol>  [96B, 2 calls]
+     0x7100e64ae0  <no symbol>  [136B, 3 calls]
+  nn::os  (6)
+     0x7101413df8  nn::os::AllocateTlsSlot  [16B, 0 calls]
+     0x7101412db8  nn::os::GetCurrentThread  [16B, 0 calls]
+     0x7101412d88  nn::os::ChangeThreadPriority  [16B, 0 calls]
+     0x7101413de8  nn::os::GetThreadId  [16B, 0 calls]
+     0x7101412d08  nn::os::SetTlsValue  [16B, 0 calls]
+     0x71014126b8  nn::os::GetCurrentCoreNumber  [16B, 0 calls]
+  sead::Thread  (1)
+     0x7100e991b0  sead::Thread  [284B, 8 calls]
+  sead::NinContentFileDevice  (1)
+     0x7100eb7150  sead::NinContentFileDevice  [92B, 1 calls]
+
+==============================================================================
+DEPTH 7  (3 functions)
+
+  nn::os  (2)
+     0x7101412d18  nn::os::GetThreadPriority
+     0x7101412d28  nn::os::GetCurrentStackInfo
+  sead::NinFileDeviceBase  (1)
+     0x7100eb734c  sead::NinFileDeviceBase
+
+==============================================================================
+Callees with no symbol (local/static, 50 distinct)
+  0x7100e7cac8  called 6x
+  0x7100e76a28  called 6x
+  0x7100e7698c  called 6x
+  0x7100e769d8  called 4x
+  0x7100e64ae0  called 4x
+  0x71011f5e8c  called 3x
+  0x7100e67618  called 3x
+  0x7100e769a8  called 3x
+  0x7100e7d904  called 3x
+  0x7100e76c14  called 3x
+  0x71011f5c08  called 2x
+  0x7100e675f8  called 2x
+  0x7100e852a0  called 2x
+  0x7100e6b8d4  called 2x
+  0x71011f5a10  called 2x
+  0x7100e7cad4  called 2x
+  0x710123d6e8  called 2x
+  0x7100e698f8  called 2x
+  0x7100e7d87c  called 2x
+  0x7100e7b43c  called 2x
+  0x7100e76be4  called 2x
+  0x7100e657e4  called 2x
+  0x7100e64b08  called 2x
+  0x7100eb746c  called 2x
+  0x71011f5bd0  called 1x
+  0x7100e67518  called 1x
+  0x7100e6b864  called 1x
+  0x71011f610c  called 1x
+  0x710123d1fc  called 1x
+  0x7100e6a01c  called 1x
+  0x7100e765cc  called 1x
+  0x71011f5a9c  called 1x
+  0x71011f59e0  called 1x
+  0x7100e7ca10  called 1x
+  0x7100e767f8  called 1x
+  0x7100e8b43c  called 1x
+  0x710123c3f8  called 1x
+  0x710123c400  called 1x
+  0x710123d6b8  called 1x
+  0x710123cab4  called 1x

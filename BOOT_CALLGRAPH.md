@@ -145,3 +145,126 @@ Repeat this same decode one level deeper — take the 16 functions above and dec
 *their* callees — to grow the checklist down to the first frame. The method
 scales: each pass is a bounded read of specific function bodies, and needs no
 whole-program analysis.
+
+---
+
+## Dependency closure (done — and it is small)
+
+That BFS was run. Walking the decoded call graph outward from the six boot roots:
+
+| Depth | Functions |
+|---:|---:|
+| 0 (roots) | 6 |
+| 1 | 34 |
+| 2 | 62 |
+| 3 | 71 |
+| 4 | 29 |
+| 5 | 11 |
+| 6 | 16 |
+| 7 | 3 |
+| **total closure** | **232** |
+
+The closure **bottoms out** — the deepest layers shrink rather than expand, and no
+new subsystems appear. Composition: `sead` 94, `nn` 46, `Lp` 22, `nv` 3, plus 49
+local/static entries with no symbol.
+
+**This is the headline result: reaching the first frame requires 232 functions,
+not 113,150.** Under the patch-don't-rewrite strategy that is the entire
+implementation surface for this milestone.
+
+### The 46 platform functions on the critical path
+
+These are the functions that cannot be stubbed and must be genuinely implemented:
+
+**`nn::os` — threading and time (21)**
+
+```
+nn::os::QueryMemoryInfo              nn::os::CreateThread
+nn::os::SetMemoryHeapSize            nn::os::GetCurrentThread
+nn::os::AllocateMemoryBlock          nn::os::GetCurrentCoreNumber
+nn::os::AllocateTlsSlot              nn::os::SetThreadCoreMask
+nn::os::GetTlsValue                  nn::os::GetThreadAvailableCoreMask
+nn::os::SetTlsValue                  nn::os::GetThreadPriority
+nn::os::InitializeMutex              nn::os::ChangeThreadPriority
+nn::os::LockMutex                    nn::os::SetThreadName
+nn::os::UnlockMutex                  nn::os::SleepThread
+nn::os::InitializeSemaphore          nn::os::GetThreadId
+nn::os::InitializeMessageQueue       nn::os::GetCurrentStackInfo
+nn::os::GetSystemTick                nn::os::ConvertToTimeSpan
+```
+
+**`nn::mem` + `nn::init` — allocation (5)**
+
+```
+nn::mem::StandardAllocator           nn::mem::StandardAllocator::Allocate
+nn::mem::StandardAllocator::Initialize   nn::mem::StandardAllocator::Free
+nn::init::InitializeAllocator
+```
+
+**`nn::vi` — display (5)**
+
+```
+nn::vi::Initialize                   nn::vi::CreateLayer
+nn::vi::OpenDefaultDisplay           nn::vi::SetLayerScalingMode
+nn::vi::GetDisplayVsyncEvent
+```
+
+**`nv` / NVN — graphics bootstrap (4)**
+
+```
+nv::InitializeGraphics               nv::SetGraphicsAllocator
+nv::SetGraphicsDevtoolsAllocator     nvnBootstrapLoader / nvnLoadCProcs
+```
+
+NVN is Nintendo's thin Vulkan-like API, so this layer maps comparatively directly
+onto Vulkan.
+
+**`nn::fs` — filesystem (2, but load-bearing)**
+
+```
+nn::fs::MountRom                     nn::fs::QueryMountRomCacheSize
+```
+
+`MountRom` is how `romfs` becomes visible. Nothing loads without it.
+
+**Application lifecycle / clock / misc (9)**
+
+```
+nn::oe::Initialize                   nn::nifm::Initialize
+nn::time::Initialize                 nn::time::IsInitialized
+nn::time::StandardUserSystemClock::GetCurrentTime
+nn::time::ToCalendarTime             nn::util::VSNPrintf
+nn::diag::detail::LogImpl            nn::os::GetCurrentStackInfo
+```
+
+> `nn::nifm` is the network interface manager — reached even for offline boot.
+> It should be stubbed, not implemented.
+
+### The `sead` surface
+
+39 `sead` subsystems are touched, including `HeapMgr`, `ExpHeap`, `Arena`,
+`ThreadMgr`, `MessageQueue`, `Semaphore`, `CriticalSection`, `ReadWriteLock`,
+`FileDeviceMgr`, `MainFileDevice`, `NinContentFileDevice`, `GameFrameworkNx`,
+`GraphicsNvn`, `FrameBufferNvn`, `DisplayBufferNvn`, `PerformanceMgrNx`,
+`ResourceMgr`, `TaskBase`, `DrawLockContext`, `ForegroundBucketMgr`.
+
+`sead` is the dominant part of the closure (94 of 232), but it has public prior
+art, so it is a reimplementation task rather than a research task.
+
+### What this means for the port
+
+The milestone has collapsed from "impossible" to **"implement 46 platform
+functions and port 39 `sead` subsystems."** The `nn::os` and `nn::mem` groups
+(~26 functions) are the true foundation and should be done first and properly —
+`WorkerThreadMgr` dispatches through them, and a `return 0` stub will hang boot
+rather than fail loudly.
+
+**Do not trust the 232 number as complete.** Two known blind spots inflate
+nothing but *hide* work:
+
+- `BLR` register-indirect calls are invisible to this method, so **all virtual
+  dispatch is missing** from the graph. The real closure is larger.
+- 49 closure entries have no symbol and were not expanded, because their bodies
+  could not be bounded.
+
+The closure is a **lower bound** on the work, and a well-defined one.
