@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[IMGUI_NVN_ASSESSMENT.md](IMGUI_NVN_ASSESSMENT.md)** - an external NVN overlay assessed: GPL-2.0, ships its NVN renderer as a BINARY, and hooks an already-created device.
 - **[NVN_DEVICE_CREATION.md](NVN_DEVICE_CREATION.md)** - the device-creation path FINALLY located: nvnBootstrapLoader resolves NVN by NAME, which is why every static scan failed.
 - **[PATH_A_DEVICE_API.md](PATH_A_DEVICE_API.md)** - nn::gfx's public device type is a template family with no out-of-line symbols, and a third failed decoder.
 - **[DEVICE_INIT_CALLER_SEARCH.md](DEVICE_INIT_CALLER_SEARCH.md)** - the search for DeviceImpl::Initialize's caller, which FAILED, and why scanning beats reading no further.
