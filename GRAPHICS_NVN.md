@@ -118,6 +118,14 @@ work from. That is a much better position than
 entire graphics bring-up path yourself" — that remains true for `g3d` and `agl`,
 but `nn::gfx` and the NVN table are now covered.
 
+> **Update.** `nn::g3d` is no longer reference-free either: its headers are in
+> **[open-ead/nnware](https://github.com/open-ead/nnware)**, together with
+> `nn::ui2d`, `nn::atk`, `nn::vfx` and `nn::font` — 2,823 functions of structural
+> reference. See [NNWARE_COVERAGE.md](NNWARE_COVERAGE.md).
+>
+> **`agl` (2,852 functions) is the remaining reference-free component, and it is
+> now the largest single unknown in the port.**
+
 ---
 
 ## 4. Caveats
@@ -137,18 +145,24 @@ but `nn::gfx` and the NVN table are now covered.
    is broad, and every entry actually reached by the game must be backed by real
    Vulkan. The saving is architectural (one dispatch table rather than hundreds of
    named functions), not a reduction in total GPU work.
-5. **`nn::g3d` and `agl` have nothing.** 3,144 functions with no reference
-   implementation. This is the largest remaining graphics task.
+5. **`nn::g3d` now has headers, but `agl` has nothing.** `nn::g3d` (292) and
+   `nn::ui2d` (479) gained structural references from `open-ead/nnware`, but that
+   repository ships stub-only sources and explicitly disclaims non-decompilation
+   use. **`agl` (2,852 functions) still has no reference at all** and is the
+   largest remaining graphics task — see [NNWARE_COVERAGE.md](NNWARE_COVERAGE.md).
 
 ## 5. Bottom line
 
 The graphics path is more tractable than it first appeared: **`nn::gfx` has an
 implementation and NVN is a single dispatch table**, so the bottom two thirds of
 the GPU stack can be stood up from references rather than reconstructed blind.
+`nn::g3d` and the UI toolkits have header-level references from `nnware`.
 
-The unbounded-looking part is now precisely bounded: **`nn::g3d` (292) and `agl`
-(2,852) are reference-free**, and both sit above a layer that can be made to work.
+**The unbounded-looking part is now precisely bounded to one component: `agl`,
+at 2,852 functions with no public reference.**
 
-Two things to settle before writing code: **the missing licenses**, and **whether
-the nnsdk header structs match this binary's layouts** (checkable with the same
-address-decode approach used elsewhere in this repo).
+Two things to settle before writing code: **the missing licenses** (all three
+`open-ead` repositories have none, and `nnware` additionally disclaims
+non-decompilation use), and **whether the nnsdk/nnware header structs match this
+binary's layouts** (checkable with the same address-decode approach used elsewhere
+in this repo).
