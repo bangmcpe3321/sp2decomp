@@ -1,19 +1,18 @@
 Boot dependency closure (BFS over decoded ARM64 call graph)
-roots: 6   max depth: 7   nodes: 232
+roots: 6   max depth: 7   nodes: 184
 
 Reachability by depth from the boot roots:
   depth 0: 6 functions
-  depth 1: 34 functions
-  depth 2: 62 functions
-  depth 3: 71 functions
-  depth 4: 29 functions
+  depth 1: 31 functions
+  depth 2: 54 functions
+  depth 3: 51 functions
+  depth 4: 20 functions
   depth 5: 11 functions
-  depth 6: 16 functions
+  depth 6: 8 functions
   depth 7: 3 functions
 
 Closure composition by top-level namespace:
      94  sead
-     49  <no symbol>
      46  nn
      22  Lp
       3  nv
@@ -33,6 +32,7 @@ Closure composition by top-level namespace:
       1  __errno_location
       1  memcpy
       1  memset
+      1  <no symbol>
       1  memmove
       1  _ZnamPN4sead4HeapEiRKSt9nothrow_t
 
@@ -41,23 +41,23 @@ DEPTH 0  (6 functions)
 
   Lp::Sys  (6)
      0x71011f5ab4  Lp::Sys::SysInit::nninitStartup  [108B, 4 calls]
-     0x71011f5b20  Lp::Sys::SysInit::Init  [1308B, 27 calls, 10 indirect]
+     0x71011f5b20  Lp::Sys::SysInit::Init  [1308B, 24 calls, 10 indirect]
      0x71011fca28  Lp::Sys::RootTask::parallelInitThreadFunc  [180B, 4 calls, 3 indirect]
      0x71011fcadc  Lp::Sys::RootTask::createParallelInitThread  [104B, 1 calls]
      0x71011fcb44  Lp::Sys::RootTask::runParallelInitThread  [96B, 2 calls]
      0x71011fcba4  Lp::Sys::RootTask::waitDoneParallelInitThread  [56B, 1 calls]
 
 ==============================================================================
-DEPTH 1  (34 functions)
+DEPTH 1  (31 functions)
 
   Lp::Sys  (8)
      0x71011f3774  Lp::Sys::getCpCallbackSeadAssert  [12B, 0 calls]
      0x71011f4ffc  Lp::Sys::HeapGroup::createInstance  [160B, 4 calls]
      0x71011f5130  Lp::Sys::HeapGroup::createHeap  [508B, 11 calls]
      0x71011f44e4  Lp::Sys::Framework  [108B, 2 calls]
-     0x71011f603c  Lp::Sys::SysInit::printFromStartTime  [424B, 4 calls]
+     0x71011f603c  Lp::Sys::SysInit::printFromStartTime  [424B, 3 calls]
      0x710123d4a0  Lp::Sys::WorkerThreadMgr::createWorker  [132B, 3 calls]
-     0x710123d1a8  Lp::Sys::WorkerThreadMgr::enqueue  [88B, 2 calls]
+     0x710123d1a8  Lp::Sys::WorkerThreadMgr::enqueue  [88B, 1 calls]
      0x710123d8c0  Lp::Sys::WorkerThreadMgr::run  [64B, 0 calls]
   nn::os  (4)
      0x71014141e8  nn::os::QueryMemoryInfo  [16B, 0 calls]
@@ -68,16 +68,12 @@ DEPTH 1  (34 functions)
      0x71012cdbf4  Lp::Utl::dumpDateTime  [216B, 5 calls]
      0x71012cdccc  Lp::Utl::dumpMemoryInfo  [408B, 7 calls]
      0x71012cdf50  Lp::Utl::sleepCurThreadMilliSec  [48B, 1 calls]
-  <no symbol>  (3)
-     0x71011f5bd0  <no symbol>  [1132B, 18 calls, 9 indirect]
-     0x71011f5c08  <no symbol>  [1076B, 16 calls, 9 indirect]
-     0x71011f5e8c  <no symbol>  [432B, 4 calls, 3 indirect]
   sead::Framework  (2)
      0x7100e69894  sead::Framework::InitializeArg  [12B, 0 calls]
      0x7100e698a0  sead::Framework::RunArg  [12B, 0 calls]
   sead::GameFrameworkNx  (2)
      0x7100e6724c  sead::GameFrameworkNx::initialize  [20B, 2 calls]
-     0x7100e6738c  sead::GameFrameworkNx::initializeGraphicsSystem  [2372B, 46 calls, 47 indirect]
+     0x7100e6738c  sead::GameFrameworkNx::initializeGraphicsSystem  [2372B, 43 calls, 47 indirect]
   nn::init  (1)
      0x7100dda018  nn::init::InitializeAllocator  [80B, 2 calls]
   sead::AssertConfig  (1)
@@ -95,26 +91,17 @@ DEPTH 1  (34 functions)
   _ZNK4sead22BufferedSafeStringBaseIcE22assureTerminationImpl_Ev  (1)
      0x7100e84ccc  _ZNK4sead22BufferedSafeStringBaseIcE22assureTerminationImpl_Ev  [20B, 0 calls]
   sead::BufferedSafeStringBase  (1)
-     0x7100e851d0  sead::BufferedSafeStringBase  [300B, 3 calls, 1 indirect]
+     0x7100e851d0  sead::BufferedSafeStringBase  [300B, 1 calls, 1 indirect]
   nn::nifm  (1)
      0x7101413268  nn::nifm::Initialize  [16B, 0 calls]
   sead::TaskBase  (1)
-     0x7100e6b7bc  sead::TaskBase::MgrTaskArg  [308B, 2 calls]
+     0x7100e6b7bc  sead::TaskBase::MgrTaskArg  [308B, 0 calls]
   sead::FormatFixedSafeString  (1)
      0x710000dbec  sead::FormatFixedSafeString  [224B, 2 calls]
 
 ==============================================================================
-DEPTH 2  (62 functions)
+DEPTH 2  (54 functions)
 
-  <no symbol>  (8)
-     0x7100e67518  <no symbol>  [1976B, 31 calls, 44 indirect]
-     0x7100e675f8  <no symbol>  [1752B, 28 calls, 39 indirect]
-     0x7100e67618  <no symbol>  [1720B, 27 calls, 39 indirect]
-     0x7100e852a0  <no symbol>  [92B, 1 calls]
-     0x7100e6b864  <no symbol>  [140B, 1 calls]
-     0x7100e6b8d4  <no symbol>  [28B, 0 calls]
-     0x71011f610c  <no symbol>  [216B, 1 calls]
-     0x710123d1fc  <no symbol>  [4B, 0 calls]
   nn::vi  (6)
      0x7101413cf8  nn::vi::Initialize  [16B, 0 calls]
      0x7101413d08  nn::vi::OpenDefaultDisplay  [16B, 0 calls]
@@ -129,10 +116,10 @@ DEPTH 2  (62 functions)
      0x7100e71050  sead::GraphicsNvn::registerDisplayBufferNvn  [8B, 0 calls]
      0x7100e71048  sead::GraphicsNvn::registerDefaultCommandBuffer  [8B, 0 calls]
   Lp::Sys  (4)
-     0x71011f5908  Lp::Sys::HeapGroup::Group::text_  [428B, 11 calls, 1 indirect]
-     0x710123c29c  Lp::Sys::getThreadInfo  [384B, 3 calls, 4 indirect]
-     0x710123d588  Lp::Sys::WorkerThreadMgr::createWorker  [536B, 4 calls, 3 indirect]
-     0x710123ca44  Lp::Sys::WorkerThread::enqueue  [148B, 5 calls]
+     0x71011f5908  Lp::Sys::HeapGroup::Group::text_  [428B, 8 calls, 1 indirect]
+     0x710123c29c  Lp::Sys::getThreadInfo  [384B, 1 calls, 4 indirect]
+     0x710123d588  Lp::Sys::WorkerThreadMgr::createWorker  [536B, 2 calls, 3 indirect]
+     0x710123ca44  Lp::Sys::WorkerThread::enqueue  [148B, 3 calls]
   nn::mem  (3)
      0x7101413038  nn::mem::StandardAllocator  [16B, 0 calls]
      0x7101413008  nn::mem::StandardAllocator::Initialize  [16B, 0 calls]
@@ -157,11 +144,11 @@ DEPTH 2  (62 functions)
   nn::diag  (1)
      0x7101412708  nn::diag::detail::LogImpl  [16B, 0 calls]
   sead::GameFramework  (1)
-     0x7100e69fe4  sead::GameFramework::initialize  [456B, 11 calls, 6 indirect]
+     0x7100e69fe4  sead::GameFramework::initialize  [456B, 10 calls, 6 indirect]
   sead::PerformanceMgrNx  (1)
      0x7100e68c44  sead::PerformanceMgrNx::initialize  [4B, 1 calls]
   sead::IDisposer  (1)
-     0x7100e76550  sead::IDisposer  [144B, 4 calls]
+     0x7100e76550  sead::IDisposer  [144B, 3 calls]
   sead::CriticalSection  (1)
      0x7100e98ab0  sead::CriticalSection  [60B, 2 calls]
   sead::ReadWriteLock  (1)
@@ -171,11 +158,11 @@ DEPTH 2  (62 functions)
   malloc  (1)
      0x7100dda0c0  malloc  [72B, 2 calls]
   _ZNK4sead7HeapMgr15findContainHeapEPKv  (1)
-     0x7100e7c8f4  _ZNK4sead7HeapMgr15findContainHeapEPKv  [504B, 15 calls, 2 indirect]
+     0x7100e7c8f4  _ZNK4sead7HeapMgr15findContainHeapEPKv  [504B, 8 calls, 2 indirect]
   free  (1)
      0x7100dda114  free  [28B, 1 calls]
   sead::ExpHeap  (1)
-     0x7100e7678c  sead::ExpHeap::tryCreate  [696B, 19 calls, 3 indirect]
+     0x7100e7678c  sead::ExpHeap::tryCreate  [696B, 10 calls, 3 indirect]
   sead::GameFrameworkNx  (1)
      0x7100e67260  sead::GameFrameworkNx  [224B, 5 calls]
   nv::SetGraphicsAllocator  (1)
@@ -201,34 +188,13 @@ DEPTH 2  (62 functions)
   sead::DelegateThread  (1)
      0x7100e99804  sead::DelegateThread  [92B, 1 calls]
   sead::StringUtil  (1)
-     0x7100e8b3b8  sead::StringUtil::vsnprintf  [148B, 2 calls]
+     0x7100e8b3b8  sead::StringUtil::vsnprintf  [148B, 1 calls]
   sead::BufferedSafeStringBase  (1)
      0x7100e84db8  sead::BufferedSafeStringBase  [108B, 1 calls]
 
 ==============================================================================
-DEPTH 3  (71 functions)
+DEPTH 3  (51 functions)
 
-  <no symbol>  (20)
-     0x7100e6a01c  <no symbol>  [400B, 9 calls, 6 indirect]
-     0x7100e765cc  <no symbol>  [20B, 0 calls]
-     0x71011f5a9c  <no symbol>  [24B, 0 calls]
-     0x71011f59e0  <no symbol>  [212B, 5 calls, 1 indirect]
-     0x71011f5a10  <no symbol>  [164B, 4 calls, 1 indirect]
-     0x7100e7ca10  <no symbol>  [220B, 6 calls, 1 indirect]
-     0x7100e7cac8  <no symbol>  [36B, 1 calls]
-     0x7100e7cad4  <no symbol>  [24B, 0 calls]
-     0x7100e767f8  <no symbol>  [588B, 17 calls, 2 indirect]
-     0x7100e76a28  <no symbol>  [28B, 0 calls]
-     0x7100e7698c  <no symbol>  [184B, 5 calls, 1 indirect]
-     0x7100e769a8  <no symbol>  [156B, 3 calls, 1 indirect]
-     0x7100e769d8  <no symbol>  [108B, 2 calls, 1 indirect]
-     0x7100e8b43c  <no symbol>  [16B, 0 calls]
-     0x710123c3f8  <no symbol>  [36B, 1 calls]
-     0x710123c400  <no symbol>  [28B, 0 calls]
-     0x710123d6b8  <no symbol>  [232B, 3 calls]
-     0x710123d6e8  <no symbol>  [184B, 2 calls]
-     0x710123cab4  <no symbol>  [36B, 1 calls]
-     0x710123cabc  <no symbol>  [28B, 1 calls]
   sead::CalendarTime  (9)
      0x7100ea72dc  sead::CalendarTime::Year::setValue  [8B, 0 calls]
      0x7100ea74bc  sead::CalendarTime::Month::makeFromValueOneOrigin  [8B, 0 calls]
@@ -252,8 +218,8 @@ DEPTH 3  (71 functions)
      0x7101412eb8  nn::time::StandardUserSystemClock::GetCurrentTime  [16B, 0 calls]
      0x7101412ec8  nn::time::ToCalendarTime  [16B, 0 calls]
   sead::Heap  (3)
-     0x7100e7b29c  sead::Heap::appendDisposer_  [120B, 4 calls]
-     0x7100e7b388  sead::Heap::findContainHeap_  [200B, 3 calls, 3 indirect]
+     0x7100e7b29c  sead::Heap::appendDisposer_  [120B, 3 calls]
+     0x7100e7b388  sead::Heap::findContainHeap_  [200B, 0 calls, 3 indirect]
      0x7100e7ada8  sead::Heap  [288B, 2 calls]
   sead::DrawLockContext  (3)
      0x7100eb9ed8  sead::DrawLockContext  [28B, 1 calls]
@@ -267,14 +233,14 @@ DEPTH 3  (71 functions)
      0x7101412ef8  nn::mem::StandardAllocator::Free  [16B, 0 calls]
   sead::EnumUtil  (2)
      0x7100e7d734  sead::EnumUtil::getParseTextCS_  [116B, 4 calls]
-     0x7100e7d810  sead::EnumUtil::parseText_  [248B, 3 calls]
+     0x7100e7d810  sead::EnumUtil::parseText_  [248B, 0 calls]
   sead::CriticalSection  (2)
      0x7100e98bd8  sead::CriticalSection::lock  [8B, 1 calls]
      0x7100e98be8  sead::CriticalSection::unlock  [8B, 1 calls]
   sead::DateTime  (1)
      0x7100ea7940  sead::DateTime::setUnixTime  [248B, 4 calls]
   sead::Framework  (1)
-     0x7100e698ac  sead::Framework::initialize  [200B, 8 calls, 1 indirect]
+     0x7100e698ac  sead::Framework::initialize  [200B, 6 calls, 1 indirect]
   sead::HeapMgr  (1)
      0x7100e7cfc0  sead::HeapMgr::setCurrentHeap_  [60B, 1 calls]
   sead::ResourceMgr  (1)
@@ -306,22 +272,11 @@ DEPTH 3  (71 functions)
   Lp::Sys  (1)
      0x710123c920  Lp::Sys::WorkerThread  [164B, 4 calls]
   sead::PtrArrayImpl  (1)
-     0x7100e57814  sead::PtrArrayImpl::insert  [132B, 2 calls]
+     0x7100e57814  sead::PtrArrayImpl::insert  [132B, 1 calls]
 
 ==============================================================================
-DEPTH 4  (29 functions)
+DEPTH 4  (20 functions)
 
-  <no symbol>  (10)
-     0x7100e698d8  <no symbol>  [156B, 5 calls, 1 indirect]
-     0x7100e698f8  <no symbol>  [124B, 4 calls, 1 indirect]
-     0x7100e7b2d0  <no symbol>  [68B, 2 calls]
-     0x710000019c  <no symbol>  [8B, 0 calls]
-     0x7100e7d84c  <no symbol>  [188B, 2 calls]
-     0x7100e7d87c  <no symbol>  [140B, 1 calls]
-     0x7100e7d904  <no symbol>  [4B, 0 calls]
-     0x7100e7b438  <no symbol>  [24B, 0 calls]
-     0x7100e7b43c  <no symbol>  [20B, 0 calls]
-     0x7100e57874  <no symbol>  [36B, 0 calls]
   nn::os  (5)
      0x7101413ee8  nn::os::InitializeSemaphore  [16B, 0 calls]
      0x7101412b48  nn::os::LockMutex  [16B, 0 calls]
@@ -343,6 +298,8 @@ DEPTH 4  (29 functions)
      0x7100e8f238  sead::ResourceMgr  [380B, 7 calls]
   sead::FileDeviceMgr  (1)
      0x7100e64864  sead::FileDeviceMgr  [204B, 7 calls]
+  <no symbol>  (1)
+     0x710000019c  <no symbol>  [8B, 0 calls]
   sead::CriticalSection  (1)
      0x7100e98aec  sead::CriticalSection  [64B, 2 calls]
   sead::Framework  (1)
@@ -364,32 +321,23 @@ DEPTH 5  (11 functions)
      0x7101413c98  nn::fs::QueryMountRomCacheSize  [16B, 0 calls]
      0x7101413ca8  nn::fs::MountRom  [16B, 0 calls]
   sead::ExpHeap  (1)
-     0x7100e76b18  sead::ExpHeap::tryCreate  [332B, 10 calls]
+     0x7100e76b18  sead::ExpHeap::tryCreate  [332B, 6 calls]
   sead::Arena  (1)
      0x7100eb9f1c  sead::Arena::initialize  [52B, 1 calls]
   sead::Random  (1)
      0x7100ea202c  sead::Random::init  [96B, 1 calls]
   sead::MainFileDevice  (1)
-     0x7100e656ac  sead::MainFileDevice  [424B, 7 calls, 2 indirect]
+     0x7100e656ac  sead::MainFileDevice  [424B, 5 calls, 2 indirect]
   sead::FileDeviceMgr  (1)
-     0x7100e64990  sead::FileDeviceMgr::mount  [472B, 7 calls, 5 indirect]
+     0x7100e64990  sead::FileDeviceMgr::mount  [472B, 3 calls, 5 indirect]
   nn::os  (1)
      0x7101412c48  nn::os::InitializeMessageQueue  [16B, 0 calls]
   _ZnamPN4sead4HeapEiRKSt9nothrow_t  (1)
      0x7100e564d8  _ZnamPN4sead4HeapEiRKSt9nothrow_t  [116B, 2 calls]
 
 ==============================================================================
-DEPTH 6  (16 functions)
+DEPTH 6  (8 functions)
 
-  <no symbol>  (8)
-     0x7100e76c50  <no symbol>  [20B, 0 calls]
-     0x7100e76bd0  <no symbol>  [148B, 5 calls]
-     0x7100e76be4  <no symbol>  [128B, 3 calls]
-     0x7100e76c14  <no symbol>  [80B, 2 calls]
-     0x7100e657e4  <no symbol>  [112B, 3 calls]
-     0x7100e64a14  <no symbol>  [340B, 6 calls, 2 indirect]
-     0x7100e64b08  <no symbol>  [96B, 2 calls]
-     0x7100e64ae0  <no symbol>  [136B, 3 calls]
   nn::os  (6)
      0x7101413df8  nn::os::AllocateTlsSlot  [16B, 0 calls]
      0x7101412db8  nn::os::GetCurrentThread  [16B, 0 calls]
@@ -406,50 +354,11 @@ DEPTH 6  (16 functions)
 DEPTH 7  (3 functions)
 
   nn::os  (2)
-     0x7101412d18  nn::os::GetThreadPriority
-     0x7101412d28  nn::os::GetCurrentStackInfo
+     0x7101412d18  nn::os::GetThreadPriority  [16B, 0 calls]
+     0x7101412d28  nn::os::GetCurrentStackInfo  [16B, 0 calls]
   sead::NinFileDeviceBase  (1)
-     0x7100eb734c  sead::NinFileDeviceBase
+     0x7100eb734c  sead::NinFileDeviceBase  [392B, 3 calls, 2 indirect]
 
 ==============================================================================
-Callees with no symbol (local/static, 50 distinct)
-  0x7100e7cac8  called 6x
-  0x7100e76a28  called 6x
-  0x7100e7698c  called 6x
-  0x7100e769d8  called 4x
-  0x7100e64ae0  called 4x
-  0x71011f5e8c  called 3x
-  0x7100e67618  called 3x
-  0x7100e769a8  called 3x
-  0x7100e7d904  called 3x
-  0x7100e76c14  called 3x
-  0x71011f5c08  called 2x
-  0x7100e675f8  called 2x
-  0x7100e852a0  called 2x
-  0x7100e6b8d4  called 2x
-  0x71011f5a10  called 2x
-  0x7100e7cad4  called 2x
-  0x710123d6e8  called 2x
-  0x7100e698f8  called 2x
-  0x7100e7d87c  called 2x
-  0x7100e7b43c  called 2x
-  0x7100e76be4  called 2x
-  0x7100e657e4  called 2x
-  0x7100e64b08  called 2x
-  0x7100eb746c  called 2x
-  0x71011f5bd0  called 1x
-  0x7100e67518  called 1x
-  0x7100e6b864  called 1x
-  0x71011f610c  called 1x
-  0x710123d1fc  called 1x
-  0x7100e6a01c  called 1x
-  0x7100e765cc  called 1x
-  0x71011f5a9c  called 1x
-  0x71011f59e0  called 1x
-  0x7100e7ca10  called 1x
-  0x7100e767f8  called 1x
-  0x7100e8b43c  called 1x
-  0x710123c3f8  called 1x
-  0x710123c400  called 1x
-  0x710123d6b8  called 1x
-  0x710123cab4  called 1x
+Callees with no symbol (local/static, 1 distinct)
+  0x710000019c  called 1x

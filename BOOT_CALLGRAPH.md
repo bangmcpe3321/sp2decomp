@@ -155,22 +155,32 @@ That BFS was run. Walking the decoded call graph outward from the six boot roots
 | Depth | Functions |
 |---:|---:|
 | 0 (roots) | 6 |
-| 1 | 34 |
-| 2 | 62 |
-| 3 | 71 |
-| 4 | 29 |
+| 1 | 31 |
+| 2 | 54 |
+| 3 | 51 |
+| 4 | 20 |
 | 5 | 11 |
-| 6 | 16 |
+| 6 | 8 |
 | 7 | 3 |
-| **total closure** | **232** |
+| **total closure** | **184** |
 
 The closure **bottoms out** — the deepest layers shrink rather than expand, and no
-new subsystems appear. Composition: `sead` 94, `nn` 46, `Lp` 22, `nv` 3, plus 49
+new subsystems appear. Composition: `sead` 94, `nn` 46, `Lp` 22, `nv` 3, plus 19
 local/static entries with no symbol.
 
-**This is the headline result: reaching the first frame requires 232 functions,
+**This is the headline result: reaching the first frame requires 184 functions,
 not 113,150.** Under the patch-don't-rewrite strategy that is the entire
 implementation surface for this milestone.
+
+> **Correction.** This figure was previously reported as **232**. That was wrong:
+> the traversal counted every unconditional `B` as a call, including three
+> *intra-function branch targets* inside `SysInit::Init` (`0x71011f5bd0`,
+> `0x71011f5c08`, `0x71011f5e8c`) which are not functions at all. Verified by
+> scanning the roots for branch instructions and checking each target against the
+> symbol table: an unconditional `B` is a tail call only when it lands on a symbol
+> start. With that rule, depth 1 is 31 = 30 `BL` targets + exactly one real tail
+> call (`Lp::Sys::WorkerThreadMgr::run`), and the total is 184. The fix is in
+> `tools/static/boot-closure.mjs`.
 
 ### The 46 platform functions on the critical path
 

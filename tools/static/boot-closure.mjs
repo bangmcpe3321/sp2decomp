@@ -82,10 +82,13 @@ function nextSym(va) {
 }
 
 const RET = 0xd65f03c0;
+// A BL is always a call. An unconditional B is a tail call ONLY when it targets a
+// symbol start; otherwise it is an intra-function branch and must not be counted
+// as a distinct function. Counting every B inflated this closure from 151 to 232,
+// because three branch targets inside SysInit::Init were treated as functions.
 function bodyEnd(va) {
   const next = nextSym(va);
   const cap = Math.min(next, ACTUAL_TEXT_SIZE);
-  // scan for the first top-level RET, up to the next symbol
   for (let p = va; p + 4 <= cap; p += 4) {
     const fo = vaToFile(p);
     if (fo + 4 > b.length) break;
@@ -126,6 +129,10 @@ function calleesOf(va) {
     if (dec.kind === "blr") { indirect++; continue; }
     if (!inText(dec.target)) continue;
     if (dec.target === va) continue; // self-recursion
+    // BL is always a call. An unconditional B is a tail call ONLY when it lands
+    // on a symbol start; otherwise it is an intra-function branch and counting it
+    // invents a function that does not exist.
+    if (dec.kind === "b" && !nameMap.has(dec.target)) continue;
     found.push(dec.target);
   }
   const res = { end, size: end - va, callees: found, indirect };
@@ -155,8 +162,15 @@ while (qi < queue.length) {
   const cur = queue[qi++];
   const d = depth.get(cur);
   perDepth.set(d, (perDepth.get(d) || 0) + 1);
-  if (d >= MAX_DEPTH) continue;
   const { callees } = calleesOf(cur);
+  if (process.env.DEBUG_ROOTS && d === 0) {
+    console.log(`ROOT ${hexs(cur)} size=${calleesOf(cur).size} callees=${callees.length}`);
+    for (const c of callees) {
+      const nm = nameMap.get(c);
+      console.log(`   -> ${hexs(c)} ${nm ? demangle(nm) : "<no symbol>"}`);
+    }
+  }
+  if (d >= MAX_DEPTH) continue;
   for (const c of callees) {
     if (depth.has(c)) continue;
     if (depth.size >= MAX_NODES) { truncated = true; break; }
