@@ -214,11 +214,54 @@ void TestQueueAndSemaphore() {
     nn::os::InitializeMessageQueue(&q, buffer, 0x20);
     Check(true, "InitializeMessageQueue accepts inline queue and buffer storage");
 
-    alignas(16) nn::os::SemaphoreType s{};
-    nn::os::InitializeSemaphore(&s, 1, 1);
-    nn::os::AcquireSemaphore(&s);
-    nn::os::ReleaseSemaphore(&s);
-    Check(true, "semaphore initialise/acquire/release do not crash");
+    // The semaphore was previously a no-op, which never blocked and never woke. These
+    // checks pin the blocking semantics, because a silent no-op here would hang boot
+    // rather than fail loudly.
+    {
+        alignas(16) nn::os::SemaphoreType s{};
+        nn::os::InitializeSemaphore(&s, 1, 1);
+
+        // Initial count 1: a first acquire must succeed immediately.
+        const auto t0 = std::chrono::steady_clock::now();
+        nn::os::AcquireSemaphore(&s);
+        const auto firstUs = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - t0).count();
+        Check(firstUs < 50000, "acquire on a count-1 semaphore returns immediately");
+
+        // Count is now 0, so a second acquire must BLOCK until a release arrives.
+        std::atomic<bool> acquired{false};
+        std::thread waiter([&] {
+            nn::os::AcquireSemaphore(&s);
+            acquired = true;
+        });
+        std::this_thread::sleep_for(std::chrono::milliseconds(60));
+        Check(!acquired.load(), "acquire on a count-0 semaphore BLOCKS (no-op would pass)");
+
+        nn::os::ReleaseSemaphore(&s);
+        waiter.join();
+        Check(acquired.load(), "release wakes the blocked acquirer");
+
+        // Releasing past the declared maximum must not inflate the count.
+        nn::os::ReleaseSemaphore(&s); // count is 0 again after the waiter took it
+        nn::os::ReleaseSemaphore(&s); // this would exceed max=1
+        nn::os::AcquireSemaphore(&s); // consumes the single permit
+        const auto t1 = std::chrono::steady_clock::now();
+        std::atomic<bool> second{false};
+        std::thread w2([&] { nn::os::AcquireSemaphore(&s); second = true; });
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+        const bool blockedAgain = !second.load();
+        nn::os::ReleaseSemaphore(&s);
+        w2.join();
+        Check(blockedAgain, "count never exceeds max, so the extra release did not add a permit");
+        (void)t1;
+    }
+
+    // A rejected initialisation must not leave a usable-looking semaphore.
+    {
+        alignas(16) nn::os::SemaphoreType bad{};
+        nn::os::InitializeSemaphore(&bad, 5, 1); // initial > max
+        Check(true, "InitializeSemaphore rejects initial > max without crashing");
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -202,13 +203,51 @@ void UnlockMutex(MutexType *mutex) {
     else s->plain.unlock();
 }
 
-void InitializeSemaphore(SemaphoreType *semaphore, int /*initial*/, int /*max*/) {
-    if (semaphore == nullptr) return;
-    std::memset(semaphore->storage, 0, sizeof(semaphore->storage));
+// The semaphore was previously a no-op, which is the most dangerous stub in this file: a
+// no-op Acquire never blocks and a no-op Release never wakes, so any code that waits on
+// one would either spin forever or proceed without its precondition being met. The boot
+// analysis in docs/BOOT_CALLGRAPH flagged `RootTask::waitDoneParallelInitThread` as a
+// likely spin-wait site, and it uses exactly these primitives.
+struct SemaphoreStorage {
+    std::mutex lock;
+    std::condition_variable cv;
+    int count;
+    int maxCount;
+    SemaphoreStorage(int initial, int max) : count(initial), maxCount(max) {}
+};
+
+SemaphoreStorage *AsSemaphore(SemaphoreType *s) {
+    return reinterpret_cast<SemaphoreStorage *>(s->storage);
 }
 
-void AcquireSemaphore(SemaphoreType *) {}
-void ReleaseSemaphore(SemaphoreType *) {}
+void InitializeSemaphore(SemaphoreType *semaphore, int initial, int max) {
+    if (semaphore == nullptr) return;
+    static_assert(sizeof(SemaphoreStorage) <= sizeof(SemaphoreType::storage),
+                  "SemaphoreType storage too small for the host semaphore");
+    // The SDK rejects an initial count above the maximum; mirror that rather than
+    // silently constructing an unsatisfiable semaphore.
+    if (initial < 0 || max <= 0 || initial > max) return;
+    new (semaphore->storage) SemaphoreStorage(initial, max);
+}
+
+void AcquireSemaphore(SemaphoreType *semaphore) {
+    if (semaphore == nullptr) return;
+    auto *s = AsSemaphore(semaphore);
+    std::unique_lock<std::mutex> g(s->lock);
+    s->cv.wait(g, [s] { return s->count > 0; });
+    --s->count;
+}
+
+void ReleaseSemaphore(SemaphoreType *semaphore) {
+    if (semaphore == nullptr) return;
+    auto *s = AsSemaphore(semaphore);
+    std::lock_guard<std::mutex> g(s->lock);
+    // Releasing past the maximum is a programming error in the caller; refraining from
+    // incrementing keeps the count inside the declared range instead of wrapping.
+    if (s->count >= s->maxCount) return;
+    ++s->count;
+    s->cv.notify_one();
+}
 
 void InitializeMessageQueue(MessageQueueType *queue, std::uint64_t *buffer, std::size_t count) {
     if (queue == nullptr) return;

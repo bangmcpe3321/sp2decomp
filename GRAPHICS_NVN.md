@@ -128,7 +128,57 @@ but `nn::gfx` and the NVN table are now covered.
 
 ---
 
-## 4. Caveats
+## 4. Reference implementation found: `devkitPro/deko3d`
+
+The NVN dispatch table described in §2 has no per-function surface in the binary, so
+what the table must *contain* had no open reference. One now exists.
+
+**`devkitPro/deko3d`** is a from-scratch low-level GPU API for Tegra X1, described in
+its own README as *"the homebrew answer to Nintendo and Nvidia's proprietary NVN"*,
+built from *"a year-and-a-half (and still ongoing) reverse engineering effort centered
+around NVN."* It is **permissively licensed** (its shader compiler derives from
+mesa/nouveau, MIT), which directly addresses the licensing problem in §5.1 below for
+this layer.
+
+**Why it corroborates §2 from an independent direction.** deko3d's README describes its
+model as *"devices, queues, command buffers… a window into the inner workings of the
+GPU."* That is precisely the shape of the `nvnLoadCProcs` table: device, queue, memory
+pool, buffer, sampler, command buffer, sync. Two unrelated lines of work — this
+repository's binary decode and devkitPro's NVN reverse engineering — arrive at the same
+architecture. That raises confidence in §2's conclusion.
+
+It also states an intent to be *"an accurate-as-possible public repository of register
+definitions and other hardware information"*, which is the kind of artefact this project
+has otherwise lacked.
+
+**What it is useful for:**
+
+- A readable spec for **what `nvnLoadCProcs` populates** — the gap that could not be
+  filled from the binary, since the function had no attributed call site
+  ([PLATFORM_IMPLEMENTATION_SPEC.md](PLATFORM_IMPLEMENTATION_SPEC.md)).
+- GPU register and method definitions.
+- Prior art on the NVN API model, from the same ecosystem as `libnx`.
+
+**What it is not useful for:**
+
+- **It does not run on PC.** It targets Switch hardware through `nvdrv`; on a PC target
+  the NVN→Vulkan/OpenGL translation still has to be written. deko3d supplies the
+  *semantics* of NVN's methods, not a port.
+- **Its shader compiler is a build-time PC tool** (`dekotools`/UAM), and the game ships
+  *compiled* GPU shaders. It does not decode shipped blobs — though studying it could
+  inform decoding that format, since it targets the same GPU ISA.
+- **It does not touch the engine layer.** `sead`, `agl`, `nn::g3d` and `nn::ui2d` are
+  unaffected; `agl` (2,852 functions) remains the largest graphics task.
+- **It is not on the boot-milestone path.** The boot order puts graphics last
+  (`initializeGraphicsSystem`), so this is a later-stage asset.
+
+**Effect on the port's biggest open question.** deko3d lowers the cost of the GPU layer
+under a **reconstruction** strategy — an NVN reimplementation on PC now has a concrete
+reference rather than none. It does not settle the emulation-vs-reconstruction decision,
+because the engine layer still dominates that cost, and under an emulation strategy an
+emulator supplies the GPU layer too.
+
+## 5. Caveats
 
 1. **License.** `nnsdk` has **no license file**, as is also the case for
    `open-ead/sead`. Two unlicensed dependencies now sit on the critical path.

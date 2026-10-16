@@ -37,7 +37,11 @@ struct MutexType {
 struct SemaphoreType {
     // UNBOUNDED by the evidence: four call sites consistently use `this + 0x20`, which
     // confirms a stable field offset but reveals no following sibling field.
-    alignas(16) unsigned char storage[0x40];
+    // The host needs 96 bytes for {mutex, condition_variable, two ints}, so this is sized
+    // to the HOST requirement, not to a measured SDK size. Safe here for the same reason
+    // as MutexType: every observed site allocates a single field, never an array element
+    // whose stride the SDK would have to know.
+    alignas(16) unsigned char storage[0x60];
 };
 
 struct ThreadType {
