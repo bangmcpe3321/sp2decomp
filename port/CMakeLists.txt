@@ -48,4 +48,9 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(engine_tests tests/engine_tests.cpp)
   target_link_libraries(engine_tests PRIVATE nnos)
   add_test(NAME engine_contract COMMAND engine_tests)
+
+  # sead::ListNode -- the intrusive list primitive registerCallback needs.
+  add_executable(list_node_tests tests/list_node_tests.cpp)
+  target_link_libraries(list_node_tests PRIVATE nnos)
+  add_test(NAME list_node_contract COMMAND list_node_tests)
 endif()
