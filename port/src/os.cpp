@@ -330,4 +330,58 @@ void GetCurrentStackInfo(std::uintptr_t *outBase, std::uintptr_t *outSize) {
 #endif
 }
 
+
+// --- nn::os system events -----------------------------------------------------------------
+// Needed by nn::vi::GetDisplayVsyncEvent: the engine's render loop waits on a per-frame event,
+// so the event has to be real rather than a null the loop would fault on. Backed by a host
+// mutex + condition_variable pair held in the EventType's opaque storage, the same
+// placement-manage approach used for the sead locks.
+namespace {
+struct EventState {
+    std::mutex m;
+    std::condition_variable cv;
+    bool signaled;
+    bool autoClear;
+};
+
+EventState *EventOf(nn::os::SystemEventType *e) {
+    static_assert(sizeof(EventState) <= sizeof(nn::os::EventType::storage),
+                  "EventType::storage is too small for the host event state");
+    return reinterpret_cast<EventState *>(e->storage);
+}
+} // namespace
+
+int CreateSystemEvent(SystemEventType *outEvent, EventClearMode clearMode, bool initiallySignaled) {
+    if (outEvent == nullptr) return -1;
+    EventState *s = new (outEvent->storage) EventState();
+    s->signaled = initiallySignaled;
+    s->autoClear = (clearMode == EventClearMode::AutoClear);
+    return 0;
+}
+
+void SignalSystemEvent(SystemEventType *event) {
+    if (event == nullptr) return;
+    EventState *s = EventOf(event);
+    {
+        std::lock_guard<std::mutex> lock(s->m);
+        s->signaled = true;
+    }
+    s->cv.notify_all();
+}
+
+void ClearSystemEvent(SystemEventType *event) {
+    if (event == nullptr) return;
+    EventState *s = EventOf(event);
+    std::lock_guard<std::mutex> lock(s->m);
+    s->signaled = false;
+}
+
+void WaitSystemEvent(SystemEventType *event) {
+    if (event == nullptr) return;
+    EventState *s = EventOf(event);
+    std::unique_lock<std::mutex> lock(s->m);
+    s->cv.wait(lock, [s] { return s->signaled; });
+    // AutoClear: consuming the signal resets it, which is what a per-frame vsync wait means.
+    if (s->autoClear) s->signaled = false;
+}
 } // namespace nn::os

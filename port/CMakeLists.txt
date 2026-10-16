@@ -13,6 +13,8 @@ add_library(nnos STATIC
   src/os.cpp
   src/util.cpp
   src/services.cpp
+  src/vi.cpp
+  src/nvn.cpp
   src/init.cpp
   src/date_time.cpp
   src/utl.cpp
@@ -111,5 +113,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(heap_group_tests tests/heap_group_tests.cpp)
   target_link_libraries(heap_group_tests PRIVATE nnos)
   add_test(NAME heap_group_contract COMMAND heap_group_tests)
+
+  # nn::vi display boundary + nvn::LoadCProcs dispatch table.
+  add_executable(vi_tests tests/vi_tests.cpp)
+  target_link_libraries(vi_tests PRIVATE nnos)
+  add_test(NAME vi_contract COMMAND vi_tests)
 
 endif()

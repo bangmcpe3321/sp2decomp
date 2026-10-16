@@ -53,8 +53,32 @@ struct ThreadType {
 };
 
 struct EventType {
-    alignas(16) unsigned char storage[0x40];
+    // MEASURED CORRECTION: 0x40 was too small. The host event state (mutex + condition
+    // variable + flags) needs more than 0x40 bytes on x86-64, and placement-new overran it --
+    // caught by a static_assert. Horizon's own EventType is larger than 0x40 as well, so the
+    // earlier figure was simply wrong. Sized to the requirement, documented rather than
+    // silently bumped.
+    alignas(16) unsigned char storage[0x80];
 };
+
+// nn::vi::GetDisplayVsyncEvent takes an nn::os::SystemEventType by out-pointer. Modelled as
+// the SDK's system-event spelling of EventType so the display layer and the render loop agree
+// on one type.
+using SystemEventType = EventType;
+
+// The clear mode GetDisplayVsyncEvent / CreateSystemEvent use. AutoClear is what a per-frame
+// vsync wait needs: the event resets itself once signalled.
+enum class EventClearMode : int {
+    AutoClear = 0,
+    ManualClear = 1,
+};
+
+// 0x7100e6738c's path reaches nn::vi::GetDisplayVsyncEvent, which must produce a usable
+// event. Signal/reset/wait are the operations the render loop performs on it.
+int CreateSystemEvent(SystemEventType *outEvent, EventClearMode clearMode, bool initiallySignaled);
+void SignalSystemEvent(SystemEventType *event);
+void ClearSystemEvent(SystemEventType *event);
+void WaitSystemEvent(SystemEventType *event);
 
 // Returned by QueryMemoryInfo; the game passes a pointer it owns.
 struct MemoryInfo {
