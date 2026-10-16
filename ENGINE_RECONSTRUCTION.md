@@ -95,20 +95,63 @@ and is a counter-example within the same ecosystem. **Do not incorporate `sead` 
 until this is settled**; use it as a *reading reference* in the meantime, which is what
 "reference" means here.
 
-## 4. The method: fail loudly, do not stub
+## 4. The method: fail loudly, do not stub — **now installed and exercised**
 
 The platform layer used stub-and-document successfully because its stubs were bounded.
 The engine layer is too large for that — silent stubs would let the harness "pass" while
 omitting most of the work.
 
-**Instead the harness should fail at the first unimplemented engine function**, reporting
-which one it reached. That turns the build into the discovery mechanism for porting
-order, and makes progress measurable as "how far through the boot root does it get".
+`port/include/lp/recon.hpp` now provides this. Reconstructed code declares a dependency
+it has not got:
 
-This is a deliberate change of technique from the platform layer, and it is the right
-one for a layer this size.
+```c
+LP_ENGINE_REQUIRE("sead::HeapMgr::createCurrentHeap", 0x7100e6b7bc);
+```
 
-## 5. Honest scale statement
+which throws `MissingEngineDependency` carrying **the name and the address**.
+
+`port/src/boot_sequence.cpp` walks the boot root's observed order, calling reconstructed
+functions and stopping at the first gap. The current run reports, truthfully:
+
+```
+reconstructed steps completed: 2
+  [1] Lp::Utl::dumpDateTime(" Application Start Time")
+  [2] nn::os::GetSystemTick -> sRunStartTime
+STOPPED AT: sead::AssertConfig::registerCallback (0x7101397fac)
+```
+
+**That output is the progress metric.** It is a statement of how far the reconstruction
+reaches, not a pass/fail of a simulated boot. As each function is ported the list grows
+and the stop moves down the boot order.
+
+### A consequence worth knowing
+
+`dumpMemoryInfo` **is** ported, but it sits after three unported dependencies in the boot
+root's order. With fail-loudly the run stops before reaching it, so it is currently
+unreachable through the sequence even though it works. That is correct behaviour, and it
+is recorded here so the gap is not surprising.
+
+## 5. Progress ledger
+
+| Boot-root dependency | State |
+|---|---|
+| `Lp::Utl::dumpDateTime` | **ported** (`port/src/utl.cpp`) |
+| `nn::os::GetSystemTick` | **ported** (platform layer) |
+| `sead::AssertConfig::registerCallback` | **not ported** — needs a `DelegateEvent`/`Slot` model; list primitive done |
+| `sead::Framework::InitializeArg::InitializeArg` | not ported |
+| `sead::GameFrameworkNx::initialize` | not ported |
+| `Lp::Utl::dumpMemoryInfo` | **ported**, but unreachable until the above land |
+| `sead::ForegroundBucketMgr::initialize` | not ported |
+| `HeapGroup::createInstance` / `createHeap` | not ported |
+| `Framework::Framework` | not ported |
+| `sead::GameFrameworkNx::initializeGraphicsSystem` | not ported |
+| `sead::TaskBase::MgrTaskArg::MgrTaskArg` | not ported |
+| `sead::Framework::RunArg::RunArg` | not ported |
+
+**Supporting primitives ported:** `sead::ListNode` (`insertFront_`, `insertBack_`,
+`erase_`) and `sead::DateTime`/`CalendarTime`.
+
+## 6. Honest scale statement
 
 - **13 functions** on the boot root's direct path. Tractable, and this document exists to
   keep the work anchored there.

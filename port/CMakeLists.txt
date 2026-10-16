@@ -16,6 +16,7 @@ add_library(nnos STATIC
   src/init.cpp
   src/date_time.cpp
   src/utl.cpp
+  src/boot_sequence.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -53,4 +54,9 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(list_node_tests tests/list_node_tests.cpp)
   target_link_libraries(list_node_tests PRIVATE nnos)
   add_test(NAME list_node_contract COMMAND list_node_tests)
+
+  # Runs reconstructed engine code and reports the first missing dependency.
+  add_executable(boot_engine_tests tests/boot_engine_tests.cpp)
+  target_link_libraries(boot_engine_tests PRIVATE nnos)
+  add_test(NAME boot_engine COMMAND boot_engine_tests)
 endif()
