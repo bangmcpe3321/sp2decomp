@@ -20,6 +20,7 @@ add_library(nnos STATIC
   src/delegate_event.cpp
   src/framework_args.cpp
   src/heap.cpp
+  src/heap_mgr.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -84,5 +85,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(heap_tests tests/heap_tests.cpp)
   target_link_libraries(heap_tests PRIVATE nnos)
   add_test(NAME heap_contract COMMAND heap_tests)
+
+  # sead::HeapMgr -- the boot-entry heap manager.
+  add_executable(heap_mgr_tests tests/heap_mgr_tests.cpp)
+  target_link_libraries(heap_mgr_tests PRIVATE nnos)
+  add_test(NAME heap_mgr_contract COMMAND heap_mgr_tests)
 
 endif()
