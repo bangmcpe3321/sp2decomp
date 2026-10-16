@@ -9,8 +9,9 @@ architecture and subsystem layout**, together with the scripts used to establish
 it. It is a research log, not a finished decompilation.
 
 > **Porting to PC?** See **[PORTING.md](PORTING.md)** for the scope assessment and
-> build-order roadmap, and [`subsystem-map.txt`](subsystem-map.txt) for the full
-> 109-subsystem breakdown.
+> build-order roadmap, and **[BOOT_MILESTONE.md](BOOT_MILESTONE.md)** for the
+> narrow "boot to main menu" target. The full 109-subsystem breakdown is in
+> [`subsystem-map.txt`](subsystem-map.txt).
 
 ---
 
@@ -81,14 +82,34 @@ gap is the single most important detail when reconstructing the image.
 
 ### MOD0
 
-The module header `MOD0` sits at **`.text+0x8`**, not at `.text+0x0`. Its offsets
-are relative to the `.text` section:
+The module header `MOD0` sits at **`.text+0x8`**. Per the
+[SwitchBrew MOD specification](https://switchbrew.org/wiki/MOD) it is a
+replacement for `PT_DYNAMIC` and **contains no entry point**:
 
-| Field | Value |
-|---|---|
-| memory region start / end | `0x2f9a468` / `0x3698f98` |
-| entry target / offset | `0x2921ec0` / `0x2a00eac` |
-| name-table offset | `0x2fdbff8` |
+| Offset | Field | This build |
+|---|---|---|
+| 0x0 | Signature `"MOD0"` | `4d4f4430` |
+| 0x4 | `DynamicOffset` | `0x2f9a468` |
+| 0x8 | `BssStartOffset` | `0x2fdbff8` |
+| 0xC | `BssEndOffset` | `0x3698f98` |
+| 0x10 | `ExceptionInfoStartOffset` | `0x2921ec0` |
+| 0x14 | `ExceptionInfoEndOffset` | `0x2a00eac` |
+| 0x18 | `ModuleOffset` (runtime-generated, ≈ `.bss` base) | `0x2fdbff8` |
+
+> **Correction.** An earlier revision of this README derived an "entry VA" from
+> `entryTarget + entryOffset` using offsets `0x10`/`0x14`. Those fields are
+> exception-handling metadata. There is no entry point in MOD0; the module is
+> entered through the dynamic section. See
+> [BOOT_MILESTONE.md](BOOT_MILESTONE.md) for the real boot chain.
+
+The dynamic section (VA `0x2f9a470`) carries the boot-relevant pointers:
+
+```
+DT_INIT          = 0x24
+DT_FINI          = 0x160
+DT_INIT_ARRAY    = 0x2fd7f90      1604 static constructors
+DT_INIT_ARRAYSZ  = 0x3220
+```
 
 ### A note on a NSO header field
 

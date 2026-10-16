@@ -1,0 +1,218 @@
+=== MOD0 / ModuleHeader (SwitchBrew field names) ===
+  Signature            : "MOD0"
+  DynamicOffset             : 0x2f9a468
+  BssStartOffset            : 0x2fdbff8
+  BssEndOffset              : 0x3698f98
+  ExceptionInfoStartOffset  : 0x2921ec0
+  ExceptionInfoEndOffset    : 0x2a00eac
+  ModuleOffset              : 0x2fdbff8
+  NOTE: per the MOD spec there is no entry point here; the module is entered
+        through the dynamic section and the runtime loader.
+
+=== .dynamic (boot-relevant tags) ===
+  DT_JMPREL          = 0x19ec6a8
+  DT_RELA            = 0x1416048
+  DT_SYMTAB          = 0x1c2e7e0
+  DT_STRTAB          = 0x1f899c8
+  DT_INIT            = 0x24
+  DT_FINI            = 0x160
+  DT_INIT_ARRAY      = 0x2fd7f90
+  DT_INIT_ARRAYSZ    = 0x3220
+  DT_NULL (end)
+
+=== .init_array (module constructors, run at boot) ===
+  entries: 1604
+  first 20 VAs: 0x17e0, 0x1868, 0x18e8, 0x1968, 0x19e8, 0x1a68, 0x1ae8, 0x1b68, 0x1be8, 0x1c68, 0x1ce8, 0x1d68, 0x1de8, 0x1e68, 0x1ee8, 0x1f68, 0x1fe8, 0x2068, 0x20e8, 0x2168
+
+=== .init_array entries with known symbols ===
+  0 of 1604 init_array entries resolve to a named symbol
+
+=== boot-critical SDK surface (module init / lifecycle) ===
+
+## Process/application lifecycle: 217 functions (34 init-like)
+   0x71014121c8  nn::oe::Initialize
+   0x7101412a48  nn::oe::FinishStartupLogo
+   0x7101412b38  nn::os::InitializeMutex
+   0x7101412b98  nn::os::SdkAllocateTlsSlot
+   0x7101412bd8  nn::os::InitializeEvent
+   0x7101412c48  nn::os::InitializeMessageQueue
+   0x7101412ce8  nn::os::CreateThread
+   0x7101412d68  nn::os::StartThread
+   0x7101412f08  nn::os::CreateThread
+   0x7101412f28  nn::os::InitializeConditionVariable
+   0x7101413d88  nn::os::InitializeLightEvent
+   0x7101413df8  nn::os::AllocateTlsSlot
+   0x7101413ec8  nn::os::AllocateMemoryBlock
+   0x7101413ee8  nn::os::InitializeSemaphore
+   0x71014148b8  nn::applet::CreateLibraryApplet
+   0x71014148f8  nn::applet::StartLibraryApplet
+   0x7101414968  nn::applet::CreateStorage
+   0x71036aa000  nn::oe::Initialize
+
+## Filesystem / romfs: 44 functions (16 init-like)
+   0x7101413aa8  nn::fs::OpenFile
+   0x7101413c88  nn::fs::Unmount
+   0x7101413c98  nn::fs::QueryMountRomCacheSize
+   0x7101413ca8  nn::fs::MountRom
+   0x7101413e48  nn::fs::CreateFile
+   0x7101413e88  nn::fs::OpenDirectory
+   0x7101413eb8  nn::fs::CreateDirectory
+   0x71014145f8  nn::fs::MountSaveData
+   0x710384c000  nn::fs::OpenFile
+   0x7103869000  nn::fs::QueryMountRomCacheSize
+   0x710386a000  nn::fs::Unmount
+   0x710386b000  nn::fs::MountRom
+   0x7103884000  nn::fs::CreateFile
+   0x7103888000  nn::fs::OpenDirectory
+   0x710388b000  nn::fs::CreateDirectory
+   0x7103901000  nn::fs::MountSaveData
+
+## Graphics device: 301 functions (12 init-like)
+   0x7100de0b5c  nn::gfx::detail::Nvn::SetupScanBufferTextureInfo
+   0x7100de18c0  nn::gfx::detail::Nvn::InitializeSwapChainImpl
+   0x7100de18d8  nn::gfx::detail::GlslcDll::Initialize
+   0x7100de19b8  nn::gfx::detail::GetGlslcInitializeFunction
+   0x7100de19e8  nn::gfx::detail::GetGlslcSetAllocatorFunction
+   0x710135dc38  nn::gfx::detail::ResShaderContainerImpl::Initialize
+   0x7101413cf8  nn::vi::Initialize
+   0x7101413d08  nn::vi::OpenDefaultDisplay
+   0x7101413d18  nn::vi::CreateLayer
+   0x710386c000  nn::vi::Initialize
+   0x710386d000  nn::vi::CreateLayer
+   0x710386f000  nn::vi::OpenDefaultDisplay
+
+## Renderer 3D/2D: 768 functions (123 init-like)
+   0x7100de796c  nn::g3d::ResFile::Setup
+   0x7100de7a00  nn::g3d::ResFile::Setup
+   0x7100de9018  nn::g3d::ResModel::Setup
+   0x7100de90b8  nn::g3d::ResModel::Setup
+   0x7100dea2e8  nn::g3d::ResVertex::Setup
+   0x7100dea3c0  nn::g3d::ResVertex::Setup
+   0x7100dea604  nn::g3d::ResShape::Setup
+   0x7100dea6a8  nn::g3d::ResMesh::Setup
+   0x7100dea70c  nn::g3d::ResShape::Setup
+   0x7100dea7bc  nn::g3d::ResMesh::Setup
+   0x7100ded2b8  nn::g3d::ShapeObj::InitializeArgument::CalculateMemorySize
+   0x7100ded454  nn::g3d::ShapeObj::Initialize
+   0x7100ded8a0  nn::g3d::ShapeObj::SetupBlockBufferImpl
+   0x7100deda20  nn::g3d::ShapeObj::SetupBlockBuffer
+   0x7100df1498  nn::g3d::ResMaterial::Setup
+   0x7101368474  nn::ui2d::AnimResource::Initialize
+   0x71013688bc  nn::ui2d::detail::AnimPaneTree::Initialize
+   0x7101369840  nn::ui2d::ArchiveHandle::Initialize
+
+## UI toolkit (menus): 1426 functions (225 init-like)
+   0x7100e1d8fc  nn::atk::SoundSystem::detail_InitializeSoundSystem
+   0x7100e1dd9c  nn::atk::SoundSystem::detail_InitializeDriverCommandManager
+   0x7100e1de90  nn::atk::SoundSystem::Initialize
+   0x7100e1df04  nn::atk::SoundSystem::Initialize
+   0x7100e1df78  nn::atk::SoundSystem::SetupInitializeBufferSet
+   0x7100e1e120  nn::atk::SoundSystem::Initialize
+   0x7100e1e174  nn::atk::SoundSystem::Initialize
+   0x7100e1e1c8  nn::atk::SoundSystem::Initialize
+   0x7100e1e23c  nn::atk::SoundSystem::Initialize
+   0x7100e1e46c  nn::atk::SoundSystem::IsInitialized
+   0x7100e1e628  nn::atk::SoundSystem::SetupHardwareManagerParameterFromCurrentSetting
+   0x7100e1e91c  nn::atk::SoundSystem::GetLowLevelVoiceAllocatorBufferSize
+   0x7100e1e9d8  nn::atk::SoundSystem::GetAllocatableDriverCommandSize
+   0x7100e1e9ec  nn::atk::SoundSystem::GetAllocatedDriverCommandBufferSize
+   0x7100e1ea00  nn::atk::SoundSystem::GetAllocatedDriverCommandCount
+   0x7100e1ff70  nn::atk::detail::driver::HardwareManager::SetupMixBufferIndices
+   0x7100e206a0  nn::atk::detail::driver::HardwareManager::AllocateRecordingSink
+   0x7100e209ac  nn::atk::detail::driver::HardwareManager::Initialize
+
+## Font (menu text): 276 functions (19 init-like)
+   0x7100de1f5c  nn::font::CharWriter::StartPrint
+   0x7100de1fd0  nn::font::CharWriter::InitializeDispStringBuffer
+   0x7100de2110  nn::font::DispStringBuffer::Initialize
+   0x71013601a0  nn::font::GlyphTreeMap::Initialize
+   0x7101360c90  nn::font::GpuBuffer::Initialize
+   0x7101360dac  nn::font::GpuBuffer::Initialize
+   0x71013622b8  nn::font::ResourceTextureObject::Initialize
+   0x71013625a0  nn::font::ScalableFont::InitializeArg::SetDefault
+   0x7101362650  nn::font::ScalableFont::Initialize
+   0x7101362cd4  nn::font::TextureCache::InitializeArg::SetDefault
+   0x71013631bc  nn::font::TextureCache::Initialize
+   0x7101363c7c  nn::font::TextureCache::InitializeFontFaceTable
+   0x7101364d24  nn::font::TextureCache::CreateNewLineImpl
+   0x71014117a8  nn::font::RectDrawer::CreateIndices
+   0x7101411800  nn::font::RectDrawer::Initialize
+   0x7101414e08  nn::fontll::ScalableFontEngine::Initialize
+   0x7101414e48  nn::fontll::ScalableFontEngine::InitializeOtfKerningTable
+   0x7103983000  nn::fontll::ScalableFontEngine::Initialize
+
+## Audio: 1220 functions (192 init-like)
+   0x7100012478  xlink2::PropertyDefinition
+   0x7100015000  xlink2::F32PropertyDefinition
+   0x7100015004  xlink2::PropertyDefinition
+   0x7100015008  xlink2::S32PropertyDefinition
+   0x71001033e8  xlink2::FixedEnumPropertyDefinition
+   0x7100103424  xlink2::FixedEnumPropertyDefinition
+   0x7100103460  xlink2::FixedEnumPropertyDefinition
+   0x710010349c  xlink2::FixedEnumPropertyDefinition
+   0x7100107bf0  xlink2::FixedEnumPropertyDefinition
+   0x7100107c34  xlink2::FixedEnumPropertyDefinition
+   0x7100107c78  xlink2::FixedEnumPropertyDefinition
+   0x7100107cbc  xlink2::FixedEnumPropertyDefinition
+   0x710011583c  xlink2::FixedEnumPropertyDefinition
+   0x7100116284  xlink2::FixedEnumPropertyDefinition
+   0x71001199b0  xlink2::FixedEnumPropertyDefinition
+   0x710011ab20  xlink2::FixedEnumPropertyDefinition
+   0x71001699e4  xlink2::IEventCallbackELink::eventCreate
+   0x71001fa8c4  xlink2::FixedEnumPropertyDefinition
+
+## Input: 112 functions (14 init-like)
+   0x7101413b18  nn::hid::InitializeNpad
+   0x7101413bb8  nn::hid::StartSixAxisSensor
+   0x7101413bc8  nn::hid::InitializeVibrationDevice
+   0x7101414348  nn::hid::InitializeTouchScreen
+   0x7101414f68  nn::hid::InitializeMouse
+   0x7101414f78  nn::hid::InitializeKeyboard
+   0x7101414fa8  nn::hid::InitializeDebugPad
+   0x7103858000  nn::hid::InitializeNpad
+   0x710385c000  nn::hid::StartSixAxisSensor
+   0x7103864000  nn::hid::InitializeVibrationDevice
+   0x71038d4000  nn::hid::InitializeTouchScreen
+   0x710399b000  nn::hid::InitializeMouse
+   0x710399d000  nn::hid::InitializeKeyboard
+   0x710399f000  nn::hid::InitializeDebugPad
+
+## Memory/heap: 4011 functions (255 init-like)
+   0x7100d1a4f4  nn::mem::StandardAllocator
+   0x7100e575e0  sead::PtrArrayImpl::allocBuffer
+   0x7100e57634  sead::PtrArrayImpl::tryAllocBuffer
+   0x7100e59030  sead::GameConfig::createInstance
+   0x7100e59d20  sead::GameConfig::createCategoryItem_
+   0x7100e5a664  sead::GameConfig::GameConfigDebugMenuPage::init
+   0x7100e5b1a0  sead::GameConfig::createFromStream
+   0x7100e5b28c  sead::GameConfig::createFromSetting_
+   0x7100e5cd0c  sead::GameConfig::createMaxCredibleSizeConfig_
+   0x7100e5d8cc  sead::GameConfig::createDebugMenuPageForSeadMenu
+   0x7100e5d8d0  sead::GameConfig::createDebugMenuPage
+   0x7100e5db84  sead::DebugMenu::createPage
+   0x7100e5f234  sead::GameConfig::createMaxCredibleSizeConfigImpl_
+   0x7100e628c8  sead::FileDevice::tryOpen
+   0x7100e62f24  sead::FileDevice::tryOpenDirectory
+   0x7100e64760  sead::FileDeviceMgr::createInstance
+   0x7100e64930  sead::FileDeviceMgr::mount_
+   0x7100e64990  sead::FileDeviceMgr::mount
+
+## Game boot/app framework: 10076 functions (1685 init-like)
+   0x7100052e24  Lp::Sys::Actor::create
+   0x7100072918  Lp::Sys::Actor::create
+   0x7100075034  Lp::Sys::Actor::create
+   0x7100079164  Lp::Sys::Actor::create
+   0x7100079230  Lp::Sys::Actor::create
+   0x71000792fc  Lp::Sys::Actor::create
+   0x710008d80c  gsys::ModelUnit::forceCalcDrawSetup
+   0x710008d810  gsys::ModelUnit::setUpMaterialImpl
+   0x71000a41ac  gsys::MaskedLight::initializeImpl_
+   0x71000fd170  Lp::Sys::Actor::create
+   0x71000fd23c  Lp::Sys::Actor::create
+   0x71000fd308  Lp::Sys::Actor::create
+   0x71000fd3d4  Lp::Sys::Actor::create
+   0x71000fd4a0  Lp::Sys::Actor::create
+   0x71000fd56c  Lp::Sys::Actor::create
+   0x71000fd638  Lp::Sys::Actor::create
+   0x71000fd704  Lp::Sys::Actor::create
+   0x71000fd7d0  Lp::Sys::Actor::create
