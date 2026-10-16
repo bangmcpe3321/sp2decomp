@@ -206,14 +206,24 @@ void UnlockMutex(MutexType *mutex) {
 // The semaphore was previously a no-op, which is the most dangerous stub in this file: a
 // no-op Acquire never blocks and a no-op Release never wakes, so any code that waits on
 // one would either spin forever or proceed without its precondition being met. The boot
-// analysis in docs/BOOT_CALLGRAPH flagged `RootTask::waitDoneParallelInitThread` as a
+// analysis in docs/BOOT_CALLGRAPH.md flagged `RootTask::waitDoneParallelInitThread` as a
 // likely spin-wait site, and it uses exactly these primitives.
-struct SemaphoreStorage {
+//
+// STORAGE HOLDS A POINTER, NOT THE STATE. An in-place version sized the buffer from
+// x86-64 layout, passed the static_assert there, then FAILED on AArch64 where the same
+// state measures 104 bytes instead of 96. Keeping the SDK-visible type small and holding
+// host state behind one pointer makes the layout ABI-independent -- the SDK only ever
+// receives a pointer to caller-owned storage, so it never needs to know the host size.
+struct SemaphoreState {
     std::mutex lock;
     std::condition_variable cv;
     int count;
     int maxCount;
-    SemaphoreStorage(int initial, int max) : count(initial), maxCount(max) {}
+    SemaphoreState(int initial, int max) : count(initial), maxCount(max) {}
+};
+
+struct SemaphoreStorage {
+    SemaphoreState *state;
 };
 
 SemaphoreStorage *AsSemaphore(SemaphoreType *s) {
@@ -223,30 +233,34 @@ SemaphoreStorage *AsSemaphore(SemaphoreType *s) {
 void InitializeSemaphore(SemaphoreType *semaphore, int initial, int max) {
     if (semaphore == nullptr) return;
     static_assert(sizeof(SemaphoreStorage) <= sizeof(SemaphoreType::storage),
-                  "SemaphoreType storage too small for the host semaphore");
+                  "SemaphoreType storage too small for the host state pointer");
+    auto *s = AsSemaphore(semaphore);
+    s->state = nullptr;
     // The SDK rejects an initial count above the maximum; mirror that rather than
     // silently constructing an unsatisfiable semaphore.
     if (initial < 0 || max <= 0 || initial > max) return;
-    new (semaphore->storage) SemaphoreStorage(initial, max);
+    s->state = new (std::nothrow) SemaphoreState(initial, max);
 }
 
 void AcquireSemaphore(SemaphoreType *semaphore) {
     if (semaphore == nullptr) return;
     auto *s = AsSemaphore(semaphore);
-    std::unique_lock<std::mutex> g(s->lock);
-    s->cv.wait(g, [s] { return s->count > 0; });
-    --s->count;
+    if (s->state == nullptr) return;
+    std::unique_lock<std::mutex> g(s->state->lock);
+    s->state->cv.wait(g, [s] { return s->state->count > 0; });
+    --s->state->count;
 }
 
 void ReleaseSemaphore(SemaphoreType *semaphore) {
     if (semaphore == nullptr) return;
     auto *s = AsSemaphore(semaphore);
-    std::lock_guard<std::mutex> g(s->lock);
-    // Releasing past the maximum is a programming error in the caller; refraining from
-    // incrementing keeps the count inside the declared range instead of wrapping.
-    if (s->count >= s->maxCount) return;
-    ++s->count;
-    s->cv.notify_one();
+    if (s->state == nullptr) return;
+    std::lock_guard<std::mutex> g(s->state->lock);
+    // Releasing past the maximum is a caller error; refraining from incrementing keeps
+    // the count inside the declared range instead of manufacturing a permit.
+    if (s->state->count >= s->state->maxCount) return;
+    ++s->state->count;
+    s->state->cv.notify_one();
 }
 
 void InitializeMessageQueue(MessageQueueType *queue, std::uint64_t *buffer, std::size_t count) {

@@ -133,6 +133,46 @@ code, any host reserve is sufficient. The header keeps a generous reserve and sa
 | `SemaphoreType` | 4 sites, stable offset, no sibling | unbounded | none |
 | `ThreadType` | SDK-allocated, held by pointer | unobservable | none |
 
+---
+
+## Cross-architecture check: the host layout is NOT portable
+
+The port was built and its whole contract suite run on **two architectures**:
+
+| Architecture | Result |
+|---|---|
+| x86-64 (native) | 111 checks, 0 failures |
+| **aarch64** (`aarch64-linux-gnu-g++` + `qemu-aarch64`) | **111 checks, 0 failures** |
+
+**The AArch64 build immediately caught a real defect that x86-64 could not.** The
+semaphore's host state measured:
+
+| Architecture | `sizeof(SemaphoreState)` |
+|---|---:|
+| x86-64 | **96 bytes** |
+| aarch64 | **104 bytes** |
+
+A `static_assert` sized against x86-64 passed there and **failed on AArch64**. The
+underlying cause is that the port was storing host state *in place* inside the
+SDK-visible type, so the buffer size depended on the host ABI.
+
+**The fix makes the layout ABI-independent:** the SDK-visible type now holds a single
+**pointer** to the host state, allocated on the heap. That works because the SDK only ever
+receives a *pointer* to caller-owned storage — it never needs to know the host state's
+size. The same change would apply to `MutexType` were its host type to grow.
+
+**This is the concrete argument for cross-architecture testing in this project.** A
+reconstructed ABI validated on one architecture is not validated — and the failure mode
+is silent memory corruption rather than a compile error, except where a `static_assert`
+happens to catch it.
+
+### Reproduce
+
+```bash
+sudo apt install -y g++-aarch64-linux-gnu    # qemu-aarch64 was already present
+bash tools/wsl/wsl-aarch64-run.sh            # cross-compile + run under qemu
+```
+
 ## What this changes in `port/`
 
 1. `MessageQueueType` storage is set to **0x48**, from measurement, not guess.
