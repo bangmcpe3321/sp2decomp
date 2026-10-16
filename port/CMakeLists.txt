@@ -11,6 +11,8 @@ endif()
 
 add_library(nnos STATIC
   src/os.cpp
+  src/util.cpp
+  src/services.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -29,4 +31,8 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(platform_tests tests/platform_contract_tests.cpp)
   target_link_libraries(platform_tests PRIVATE nnos)
   add_test(NAME platform_contract COMMAND platform_tests)
+
+  add_executable(services_tests tests/services_tests.cpp)
+  target_link_libraries(services_tests PRIVATE nnos)
+  add_test(NAME services_contract COMMAND services_tests)
 endif()
