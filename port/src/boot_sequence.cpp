@@ -139,7 +139,14 @@ void SequenceBody(Runner &r) {
     r.step("Lp::Sys::HeapGroup::createInstance", [] {
         Lp::Sys::HeapGroup::createInstance(sead::HeapMgr::getRootHeap(0));
     });
-    r.missing("HeapGroup::createHeap", kHeapGroupCreateHeap);
+    // Ported: 0x71011f5130, 508 bytes -- creates six named heaps as children of the parent.
+    r.step("Lp::Sys::HeapGroup::createHeap", [] {
+        Lp::Sys::HeapSizes sizes;
+        const char *names[5] = {"cGroup0", "cGroup1", "cGroup2", "cGroup3", "cGroup4"};
+        if (auto *hg = Lp::Sys::HeapGroup::instance()) {
+            hg->createHeap(sead::HeapMgr::getRootHeap(0), sizes, names, "cOthers");
+        }
+    });
     r.missing("Framework::Framework", kFrameworkCtor);
     r.missing("sead::GameFrameworkNx::initializeGraphicsSystem", kInitializeGraphicsSystem);
     r.missing("sead::TaskBase::MgrTaskArg::MgrTaskArg", kMgrTaskArgCtor);
