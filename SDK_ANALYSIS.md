@@ -1,5 +1,9 @@
 # `sdk` module analysis
 
+> **The reference deliverable is [SDK_REFERENCE.md](SDK_REFERENCE.md).** This document
+> is the investigation log behind it: the method, the round-by-round findings, and the
+> negative results.
+
 Progress report on the module that holds the real implementations behind `main`'s
 49 platform import thunks.
 
