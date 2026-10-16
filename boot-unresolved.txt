@@ -1,0 +1,125 @@
+Symbol-less callees in the boot closure
+closure nodes: 232   symbol-less callees: 50
+
+Case A -- targets inside .text but with no symbol (50)
+These are local/static functions: real work not captured by the symbol table.
+
+  0x7100e7cac8  size 36B  1 calls  called 6x
+      inside _ZNK4sead7HeapMgr15findContainHeapEPKv +0x1d4
+  0x7100e76a28  size 28B  0 calls  called 6x
+      inside sead::ExpHeap::tryCreate +0x29c
+  0x7100e7698c  size 184B  5 calls  called 6x
+      inside sead::ExpHeap::tryCreate +0x200
+  0x7100e769d8  size 108B  2 calls  called 4x
+      inside sead::ExpHeap::tryCreate +0x24c
+  0x7100e64ae0  size 136B  3 calls  called 4x
+      inside sead::FileDeviceMgr::mount +0x150
+  0x71011f5e8c  size 432B  4 calls  called 3x
+      inside Lp::Sys::SysInit::Init +0x36c
+  0x7100e67618  size 1720B  27 calls  called 3x
+      inside sead::GameFrameworkNx::initializeGraphicsSystem +0x28c
+  0x7100e769a8  size 156B  3 calls  called 3x
+      inside sead::ExpHeap::tryCreate +0x21c
+  0x7100e7d904  size 4B  0 calls  called 3x
+      inside sead::EnumUtil::parseText_ +0xf4
+  0x7100e76c14  size 80B  2 calls  called 3x
+      inside sead::ExpHeap::tryCreate +0xfc
+  0x71011f5c08  size 1076B  16 calls  called 2x
+      inside Lp::Sys::SysInit::Init +0xe8
+  0x7100e675f8  size 1752B  28 calls  called 2x
+      inside sead::GameFrameworkNx::initializeGraphicsSystem +0x26c
+  0x7100e852a0  size 92B  1 calls  called 2x
+      inside sead::BufferedSafeStringBase +0xd0
+  0x7100e6b8d4  size 28B  0 calls  called 2x
+      inside sead::TaskBase::MgrTaskArg +0x118
+  0x71011f5a10  size 164B  4 calls  called 2x
+      inside Lp::Sys::HeapGroup::Group::text_ +0x108
+  0x7100e7cad4  size 24B  0 calls  called 2x
+      inside _ZNK4sead7HeapMgr15findContainHeapEPKv +0x1e0
+  0x710123d6e8  size 184B  2 calls  called 2x
+      inside Lp::Sys::WorkerThreadMgr::createWorker +0x160
+  0x7100e698f8  size 124B  4 calls  called 2x
+      inside sead::Framework::initialize +0x4c
+  0x7100e7d87c  size 140B  1 calls  called 2x
+      inside sead::EnumUtil::parseText_ +0x6c
+  0x7100e7b43c  size 20B  0 calls  called 2x
+      inside sead::Heap::findContainHeap_ +0xb4
+  0x7100e76be4  size 128B  3 calls  called 2x
+      inside sead::ExpHeap::tryCreate +0xcc
+  0x7100e657e4  size 112B  3 calls  called 2x
+      inside sead::MainFileDevice +0x138
+  0x7100e64b08  size 96B  2 calls  called 2x
+      inside sead::FileDeviceMgr::mount +0x178
+  0x7100eb746c  size 104B  1 calls  called 2x
+      inside sead::NinFileDeviceBase +0x120
+  0x71011f5bd0  size 1132B  18 calls  called 1x
+      inside Lp::Sys::SysInit::Init +0xb0
+  0x7100e67518  size 1976B  31 calls  called 1x
+      inside sead::GameFrameworkNx::initializeGraphicsSystem +0x18c
+  0x7100e6b864  size 140B  1 calls  called 1x
+      inside sead::TaskBase::MgrTaskArg +0xa8
+  0x71011f610c  size 216B  1 calls  called 1x
+      inside Lp::Sys::SysInit::printFromStartTime +0xd0
+  0x710123d1fc  size 4B  0 calls  called 1x
+      inside Lp::Sys::WorkerThreadMgr::enqueue +0x54
+  0x7100e6a01c  size 400B  9 calls  called 1x
+      inside sead::GameFramework::initialize +0x38
+  0x7100e765cc  size 20B  0 calls  called 1x
+      inside sead::IDisposer +0x7c
+  0x71011f5a9c  size 24B  0 calls  called 1x
+      inside Lp::Sys::HeapGroup::Group::text_ +0x194
+  0x71011f59e0  size 212B  5 calls  called 1x
+      inside Lp::Sys::HeapGroup::Group::text_ +0xd8
+  0x7100e7ca10  size 220B  6 calls  called 1x
+      inside _ZNK4sead7HeapMgr15findContainHeapEPKv +0x11c
+  0x7100e767f8  size 588B  17 calls  called 1x
+      inside sead::ExpHeap::tryCreate +0x6c
+  0x7100e8b43c  size 16B  0 calls  called 1x
+      inside sead::StringUtil::vsnprintf +0x84
+  0x710123c3f8  size 36B  1 calls  called 1x
+      inside Lp::Sys::getThreadInfo +0x15c
+  0x710123c400  size 28B  0 calls  called 1x
+      inside Lp::Sys::getThreadInfo +0x164
+  0x710123d6b8  size 232B  3 calls  called 1x
+      inside Lp::Sys::WorkerThreadMgr::createWorker +0x130
+  0x710123cab4  size 36B  1 calls  called 1x
+      inside Lp::Sys::WorkerThread::enqueue +0x70
+  0x710123cabc  size 28B  1 calls  called 1x
+      inside Lp::Sys::WorkerThread::enqueue +0x78
+  0x7100e698d8  size 156B  5 calls  called 1x
+      inside sead::Framework::initialize +0x2c
+  0x7100e7b2d0  size 68B  2 calls  called 1x
+      inside sead::Heap::appendDisposer_ +0x34
+  0x710000019c  size 8B  0 calls  called 1x
+      inside _fini +0x3c
+  0x7100e7d84c  size 188B  2 calls  called 1x
+      inside sead::EnumUtil::parseText_ +0x3c
+  0x7100e7b438  size 24B  0 calls  called 1x
+      inside sead::Heap::findContainHeap_ +0xb0
+  0x7100e57874  size 36B  0 calls  called 1x
+      inside sead::PtrArrayImpl::insert +0x60
+  0x7100e76c50  size 20B  0 calls  called 1x
+      inside sead::ExpHeap::tryCreate +0x138
+  0x7100e76bd0  size 148B  5 calls  called 1x
+      inside sead::ExpHeap::tryCreate +0xb8
+  0x7100e64a14  size 340B  6 calls  called 1x
+      inside sead::FileDeviceMgr::mount +0x84
+
+Attribution of case A by containing namespace:
+    14  Lp::Sys
+     9  sead::ExpHeap
+     3  _ZNK4sead7HeapMgr15findContainHeapEPKv
+     3  sead::FileDeviceMgr
+     3  sead::GameFrameworkNx
+     3  sead::EnumUtil
+     3  sead::Heap
+     2  sead::TaskBase
+     2  sead::Framework
+     1  sead::BufferedSafeStringBase
+     1  sead::MainFileDevice
+     1  sead::NinFileDeviceBase
+     1  sead::GameFramework
+     1  sead::IDisposer
+     1  sead::StringUtil
+     1  _fini
+     1  sead::PtrArrayImpl

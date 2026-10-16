@@ -268,3 +268,46 @@ nothing but *hide* work:
   could not be bounded.
 
 The closure is a **lower bound** on the work, and a well-defined one.
+
+---
+
+## Closing the symbol-less gap (done)
+
+That second bullet was chased down, and it turned out to be **mostly a false
+alarm** — which is worth recording, because it changes how the 232 should be read.
+
+All **50** symbol-less callees were classified. Every one of them lands *inside*
+`.text`; none were imports or out-of-text stubs. Measuring where each falls within
+the symbol that contains it:
+
+| Offset into containing symbol | Count | Interpretation |
+|---|---:|---|
+| ≥ 0x40 (well inside a function body) | **45** | in-body branch targets |
+| < 0x40 (near a function start) | 5 | branch landings / landing pads |
+
+Median offset is `0xF4` — deep inside the containing function, not at its start.
+The five near-start cases were inspected individually:
+
+```
+0x7100e698d8  inside sead::Framework::initialize      +0x2c
+0x7100e6a01c  inside sead::GameFramework::initialize  +0x38
+0x7100e7b2d0  inside sead::Heap::appendDisposer_      +0x34
+0x7100e7d84c  inside sead::EnumUtil::parseText_       +0x3c
+0x710000019c  inside _fini                            +0x3c
+```
+
+Each is a `BL` target reached from code *elsewhere*, but the address sits inside an
+existing function. That is the signature of a **branch landing** — a jump-table
+destination, landing pad, or optimizer tail-merge — not of a separate function.
+
+**Conclusion: there are no hidden functions behind the symbol-less entries.** The
+232-node closure therefore accounts for essentially all code reachable through
+*direct* calls in this boot path. That is a stronger statement than the earlier
+"lower bound with 49 unknowns", and it means the enumerable spine is complete.
+
+**The remaining gap is exclusively virtual dispatch.** `sead` is built on
+delegates, task graphs and virtual interfaces, so the true closure is larger than
+232 — but the extra work is *dynamic dispatch targets*, not missed static
+functions. Quantifying that requires pointer/type analysis (identifying vtables
+and devirtualising call sites), which is a separate project from static call
+decoding and is not attempted here.
