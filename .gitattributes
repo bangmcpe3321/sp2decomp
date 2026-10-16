@@ -1,0 +1,7 @@
+# Normalize line endings so the published files match the authored content.
+* text=auto eol=lf
+*.md  text eol=lf
+*.mjs text eol=lf
+*.js  text eol=lf
+*.py  text eol=lf
+*.tsv text eol=lf

@@ -1,0 +1,40 @@
+# Never commit game data or keys
+*.xci
+*.nsp
+*.nca
+*.nso
+*.npdm
+*.kip
+*.kip1
+*.szs
+*.bfres
+*.byml
+prod.keys
+title.keys
+console.keys
+*.keys
+
+# NSO/Ghidra analysis artifacts
+*.elf
+*.rep/
+*.gpr
+*.lock
+*.lock~
+inventory.txt
+mod0-exports.tsv
+ghidra*.log
+inspect.json
+ghidraproj/
+
+# Decompressed / extracted output
+exefs/
+romfs/
+secure/
+*.decompressed
+
+# Local tool droppings
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
+Thumbs.db
