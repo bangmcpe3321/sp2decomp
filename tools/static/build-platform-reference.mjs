@@ -82,14 +82,23 @@ function classify(name, sig, bodyText) {
 }
 
 // ---- pull the observed signature -----------------------------------------
+// Ghidra splits the return type and the name/argument list across lines, so a
+// single-line match fails; reassemble from the comment block onwards. These
+// functions are mostly 13-byte import thunks, so the recovered declaration is the
+// whole value of the entry.
 function observedSignature(block) {
-  // Ghidra's simplest form is the first line matching <type> <name>(...)
+  const raw = block.body.join("\n");
+  const m = /\/\*\s*([^*]+?)\s*\*\/\s*([\s\S]{0,300}?\([\s\S]{0,400}?\))\s*\n\s*\{/.exec(raw);
+  if (m) {
+    const ret = m[1].trim();
+    const decl = m[2].replace(/\s+/g, " ").trim();
+    return `${ret} ${decl}`.slice(0, 300);
+  }
+  // thunks may not have the comment block; take the first call-style declaration
   for (const ln of block.body) {
     const s = ln.trim();
-    if (!s || s.startsWith("/*") || s.startsWith("*")) continue;
-    if (/^\w[\w \*&:<>]*\s+\w+\s*\(.*\)\s*$/.test(s) && s.includes("(")) {
-      return s.replace(/\s+/g, " ").trim();
-    }
+    if (!s || s.startsWith("/*") || s.startsWith("*") || s === "{") continue;
+    if (/\([^)]*\)\s*;?\s*$/.test(s) && !/^[{}]/.test(s)) return s.replace(/\s+/g, " ").slice(0, 300);
   }
   return "(signature not recovered)";
 }
@@ -175,13 +184,47 @@ for (const [ns, items] of [...groups.entries()].sort((a, b) => b[1].length - a[1
 
 out.push("## Notes");
 out.push("");
+out.push("### Read the signatures with care");
+out.push("");
+out.push("**A thunk's signature is not the SDK's signature.** These functions are 13-byte");
+out.push("import stubs that forward through a pointer, and the stub itself declares no");
+out.push("parameters. Ghidra therefore renders many of them as `f(void)` — for example");
+out.push("`void nn::os::GetTlsValue(void)` — even though the real SDK function takes");
+out.push("arguments.");
+out.push("");
+out.push("**The real ABI is in the pointer type, not the stub.** A stub looks like:");
+out.push("");
+out.push("```c");
+out.push("void nn::os::GetSystemTick(void)");
+out.push("{");
+out.push("  (*(code *)PTR_GetSystemTick_7102f9a700)();");
+out.push("}");
+out.push("```");
+out.push("");
+out.push("The actual parameter list belongs to `PTR_GetSystemTick_*`. To recover a true");
+out.push("signature, read the pointer's declared type at that address in the analysis, or");
+out.push("inspect a **call site** in a caller function, where arguments are actually");
+out.push("passed. `PORT_WORKLIST.md` lists those callers for every entry.");
+out.push("");
+out.push("Signatures rendered with named parameters — for instance");
+out.push("`nn::init::InitializeAllocator(ulong param_1)` or");
+out.push("`nn::mem::StandardAllocator::StandardAllocator(StandardAllocator *this)` — came");
+out.push("from functions that do have real bodies, and those are trustworthy.");
+out.push("");
+out.push("### Other caveats");
+out.push("");
 out.push("- Signatures are **observed** from the decompiled body, not declared in a");
-out.push("  header. Argument counts and types come from Ghidra's inference and may");
-out.push("  differ from the original SDK declaration in naming, not in ABI.");
+out.push("  header. Naming may differ from the original SDK declaration; the ABI should");
+out.push("  not.");
 out.push("- Full pseudocode for every function is reproducible with");
 out.push("  `tools/ghidra/ExtractDecompiled.py`; it is not committed here.");
 out.push("- Functions marked **platform service (stub candidate)** should be stubbed");
 out.push("  rather than implemented for the offline boot milestone.");
+out.push("- **The platform layer is not implemented in `main`.** These 51 are imports; the");
+out.push("  real implementations live in the `sdk` module (confirmed present there for");
+out.push("  `nn::os` and `nn::mem::StandardAllocator`). See the finding in");
+out.push("  [DECOMPILED_BODIES.md](DECOMPILED_BODIES.md) and analyse `sdk` before writing");
+out.push("  any of this from scratch.");
 
 writeFileSync(outPath, out.join("\n") + "\n");
 console.log(`wrote ${outPath}`);

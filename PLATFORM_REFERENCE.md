@@ -1,28 +1,787 @@
 # Platform implementation reference
 
 Observed contracts for the 51 platform functions in
-[PORT_WORKLIST.md](PORT_WORKLIST.md), read off the shipped binary rather than from a
-header.
+[PORT_WORKLIST.md](PORT_WORKLIST.md), taken from the decompiled binary rather
+than from a header.
 
-**Why this matters:** `open-ead/nnsdk` ships no `include/nn/os/` headers, so `nn::os`
-signatures are documented nowhere public. These were recovered from the code itself,
-which makes them the authoritative contract.
+**Why this matters:** `open-ead/nnsdk` ships no `include/nn/os/` headers, so
+`nn::os` signatures are documented nowhere public. These signatures are read
+off the shipped code, which makes them the authoritative contract.
 
-Source: Ghidra 12.1.2 via REA's provider, decompiling the analysed `main` project.
-Functions: **51 of 51 decompiled**.
+Source: `platform-decompiled.txt` (Ghidra 12.1.2 via REA provider).
+Functions: 51.
 
 ---
 
-## The finding that reframes the port
+## Phase 1: `nn::os` — 24 functions
 
-**49 of the 51 platform functions are 13-byte import thunks, not implementations.**
+### `nn::os::AllocateMemoryBlock`
 
-| Body size | Count |
-|---|---:|
-| 13 bytes (thunk) | **49** |
-| > 32 bytes (real code) | 2 |
+- **Address**: `0x7101413ec8`
+- **Body size**: 13 bytes
+- **Role**: allocator
+- **Boot-closure callers**: Lp::Sys::SysInit::nninitStartup, sead::Arena::initialize
+- **Observed signature**:
 
-A thunk looks like this — a single indirect call through a pointer:
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::AllocateMemoryBlock(ulong *param_1,ulong param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::GetSystemTick`
+
+- **Address**: `0x7101412298`
+- **Body size**: 13 bytes
+- **Role**: time
+- **Boot-closure callers**: Lp::Sys::SysInit::Init, Lp::Sys::Framework, Lp::Sys::SysInit::printFromStartTime
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::GetSystemTick(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::QueryMemoryInfo`
+
+- **Address**: `0x71014141e8`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: Lp::Sys::SysInit::nninitStartup, Lp::Sys::SysInit::Init, Lp::Utl::dumpMemoryInfo
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::QueryMemoryInfo(MemoryInfo *param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::SetMemoryHeapSize`
+
+- **Address**: `0x71014141f8`
+- **Body size**: 13 bytes
+- **Role**: allocator
+- **Boot-closure callers**: Lp::Sys::SysInit::nninitStartup
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::SetMemoryHeapSize(ulong param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::ConvertToTimeSpan`
+
+- **Address**: `0x7101412c08`
+- **Body size**: 13 bytes
+- **Role**: time
+- **Boot-closure callers**: sead::Thread::sleep
+- **Observed signature**:
+
+```c
+void nn::os::ConvertToTimeSpan(void)
+```
+
+_Body: 1 distinct call targets; 6 body lines_
+
+### `nn::os::GetThreadAvailableCoreMask`
+
+- **Address**: `0x7101412d98`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::Thread::setAffinity, sead::Thread
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::GetThreadAvailableCoreMask(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::GetTlsValue`
+
+- **Address**: `0x71014125e8`
+- **Body size**: 13 bytes
+- **Role**: TLS slot management
+- **Boot-closure callers**: _ZNK4sead7HeapMgr14getCurrentHeapEv, _ZNK4sead7HeapMgr15findContainHeapEPKv, sead::HeapMgr::setCurrentHeap_
+- **Observed signature**:
+
+```c
+void nn::os::GetTlsValue(void)
+```
+
+_Body: 1 distinct call targets; 6 body lines_
+
+### `nn::os::InitializeMutex`
+
+- **Address**: `0x7101412b38`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::CriticalSection
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::InitializeMutex(MutexType *param_1,bool param_2,int param_3)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::SetThreadCoreMask`
+
+- **Address**: `0x7101412da8`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::Thread::setAffinity, sead::Thread
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::SetThreadCoreMask(ThreadType *param_1,int param_2,ulong param_3)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::SleepThread`
+
+- **Address**: `0x7101412d48`
+- **Body size**: 13 bytes
+- **Role**: thread primitive
+- **Boot-closure callers**: sead::Thread::sleep
+- **Observed signature**:
+
+```c
+void nn::os::SleepThread(void)
+```
+
+_Body: 1 distinct call targets; 6 body lines_
+
+### `nn::os::CreateThread`
+
+- **Address**: `0x7101412ce8`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::Thread
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::CreateThread (ThreadType *param_1,_func_void_void_ptr *param_2,void *param_3,void *param_4, ulong param_5,int param_6)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 9 body lines_
+
+### `nn::os::InitializeSemaphore`
+
+- **Address**: `0x7101413ee8`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::Semaphore
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::InitializeSemaphore(SemaphoreType *param_1,int param_2,int param_3)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::LockMutex`
+
+- **Address**: `0x7101412b48`
+- **Body size**: 13 bytes
+- **Role**: lock primitive
+- **Boot-closure callers**: sead::CriticalSection::lock
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::LockMutex(MutexType *param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::SetThreadName`
+
+- **Address**: `0x7101412cf8`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::Thread
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::SetThreadName(ThreadType *param_1,char *param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::UnlockMutex`
+
+- **Address**: `0x7101412b68`
+- **Body size**: 13 bytes
+- **Role**: lock primitive
+- **Boot-closure callers**: sead::CriticalSection::unlock
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::UnlockMutex(MutexType *param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::InitializeMessageQueue`
+
+- **Address**: `0x7101412c48`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::MessageQueue::allocate
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::InitializeMessageQueue(MessageQueueType *param_1,ulong *param_2,ulong param_3)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::AllocateTlsSlot`
+
+- **Address**: `0x7101413df8`
+- **Body size**: 13 bytes
+- **Role**: TLS slot management
+- **Boot-closure callers**: sead::ThreadMgr
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::AllocateTlsSlot(TlsSlot *param_1,_func_void_ulong *param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::ChangeThreadPriority`
+
+- **Address**: `0x7101412d88`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::ThreadMgr::initMainThread_
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::ChangeThreadPriority(ThreadType *param_1,int param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::GetCurrentCoreNumber`
+
+- **Address**: `0x71014126b8`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::ThreadMgr::initMainThread_
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::GetCurrentCoreNumber(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::GetCurrentThread`
+
+- **Address**: `0x7101412db8`
+- **Body size**: 13 bytes
+- **Role**: thread primitive
+- **Boot-closure callers**: sead::ThreadMgr::initMainThread_
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::GetCurrentThread(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::GetThreadId`
+
+- **Address**: `0x7101413de8`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::ThreadMgr::initMainThread_
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::GetThreadId(ThreadType *param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::SetTlsValue`
+
+- **Address**: `0x7101412d08`
+- **Body size**: 13 bytes
+- **Role**: TLS slot management
+- **Boot-closure callers**: sead::ThreadMgr::initMainThread_
+- **Observed signature**:
+
+```c
+void nn::os::SetTlsValue(void)
+```
+
+_Body: 1 distinct call targets; 6 body lines_
+
+### `nn::os::GetCurrentStackInfo`
+
+- **Address**: `0x7101412d28`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::Thread
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::GetCurrentStackInfo(ulong *param_1,ulong *param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::os::GetThreadPriority`
+
+- **Address**: `0x7101412d18`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::Thread
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::os::GetThreadPriority(ThreadType *param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+---
+
+## Phase 4: `nn::vi` — 6 functions
+
+### `nn::vi::CreateLayer`
+
+- **Address**: `0x7101413d18`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::vi::CreateLayer(Layer **param_1,Display *param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::vi::GetDisplayVsyncEvent`
+
+- **Address**: `0x7101413d38`
+- **Body size**: 13 bytes
+- **Role**: display / video interface
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::vi::GetDisplayVsyncEvent(SystemEventType *param_1,Display *param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::vi::GetNativeWindow`
+
+- **Address**: `0x7101413d58`
+- **Body size**: 13 bytes
+- **Role**: display / video interface
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::vi::GetNativeWindow(void **param_1,Layer *param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::vi::Initialize`
+
+- **Address**: `0x7101413cf8`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::vi::Initialize(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::vi::OpenDefaultDisplay`
+
+- **Address**: `0x7101413d08`
+- **Body size**: 13 bytes
+- **Role**: filesystem / romfs
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::vi::OpenDefaultDisplay(Display **param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::vi::SetLayerScalingMode`
+
+- **Address**: `0x7101413d28`
+- **Body size**: 13 bytes
+- **Role**: display / video interface
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+void nn::vi::SetLayerScalingMode(void)
+```
+
+_Body: 1 distinct call targets; 6 body lines_
+
+---
+
+## Phase 1: `nn::mem` — 5 functions
+
+### `nn::mem::StandardAllocator`
+
+- **Address**: `0x7101413038`
+- **Body size**: 13 bytes
+- **Role**: allocator
+- **Boot-closure callers**: nn::init::InitializeAllocator
+- **Observed signature**:
+
+```c
+void __thiscall nn::mem::StandardAllocator::StandardAllocator(StandardAllocator *this)
+```
+
+_Body: 1 distinct call targets; 6 body lines_
+
+### `nn::mem::StandardAllocator`
+
+- **Address**: `0x7101413cd8`
+- **Body size**: 13 bytes
+- **Role**: allocator
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+nn::mem::StandardAllocator::StandardAllocator(StandardAllocator *this,void *param_1,ulong param_2)
+```
+
+_Body: 1 distinct call targets; 7 body lines_
+
+### `nn::mem::StandardAllocator::Initialize`
+
+- **Address**: `0x7101413008`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: nn::init::InitializeAllocator
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::mem::StandardAllocator::Initialize(void *param_1,ulong param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::mem::StandardAllocator::Allocate`
+
+- **Address**: `0x7101412ee8`
+- **Body size**: 13 bytes
+- **Role**: allocator
+- **Boot-closure callers**: malloc
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::mem::StandardAllocator::Allocate(ulong param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::mem::StandardAllocator::Free`
+
+- **Address**: `0x7101412ef8`
+- **Body size**: 13 bytes
+- **Role**: allocator
+- **Boot-closure callers**: free
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::mem::StandardAllocator::Free(void *param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+---
+
+## Phase 4: `nv / nvn` — 5 functions
+
+### `nv::InitializeGraphics`
+
+- **Address**: `0x7101413cc8`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nv::InitializeGraphics(void *param_1,ulong param_2)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nv::SetGraphicsAllocator`
+
+- **Address**: `0x7101413cb8`
+- **Body size**: 13 bytes
+- **Role**: allocator
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nv::SetGraphicsAllocator (_func_void_ptr_ulong_ulong_void_ptr *param_1,_func_void_void_ptr_void_ptr *param_2, _func_void_ptr_void_ptr_ulong_void_ptr *param_3,void *param_4)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 9 body lines_
+
+### `nv::SetGraphicsDevtoolsAllocator`
+
+- **Address**: `0x7101413ce8`
+- **Body size**: 13 bytes
+- **Role**: allocator
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nv::SetGraphicsDevtoolsAllocator (_func_void_ptr_ulong_ulong_void_ptr *param_1,_func_void_void_ptr_void_ptr *param_2, _func_void_ptr_void_ptr_ulong_void_ptr *param_3,void *param_4)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 9 body lines_
+
+### `nvnBootstrapLoader`
+
+- **Address**: `0x7101413d48`
+- **Body size**: 13 bytes
+- **Role**: NVN bootstrap
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+void nvnBootstrapLoader(void)
+```
+
+_Body: 1 distinct call targets; 6 body lines_
+
+### `nvnLoadCProcs`
+
+- **Address**: `0x7100ddd6e4`
+- **Body size**: 12712 bytes
+- **Role**: NVN bootstrap
+- **Boot-closure callers**: sead::GameFrameworkNx::initializeGraphicsSystem
+- **Observed signature**:
+
+```c
+void nvnLoadCProcs(undefined8 param_1,undefined *param_2)
+```
+
+_Body: 1 distinct call targets; 913 body lines_
+
+---
+
+## Phase 2: `nn::time` — 4 functions
+
+### `nn::time::Initialize`
+
+- **Address**: `0x7101413048`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::DateTime::setNow
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::time::Initialize(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::time::IsInitialized`
+
+- **Address**: `0x7101413e28`
+- **Body size**: 13 bytes
+- **Role**: query / control
+- **Boot-closure callers**: sead::DateTime::setNow
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::time::IsInitialized(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::time::StandardUserSystemClock::GetCurrentTime`
+
+- **Address**: `0x7101412eb8`
+- **Body size**: 13 bytes
+- **Role**: time
+- **Boot-closure callers**: sead::DateTime::setNow
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::time::StandardUserSystemClock::GetCurrentTime(PosixTime *param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::time::ToCalendarTime`
+
+- **Address**: `0x7101412ec8`
+- **Body size**: 13 bytes
+- **Role**: time
+- **Boot-closure callers**: sead::DateTime::setNow
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::time::ToCalendarTime (CalendarTime *param_1,CalendarAdditionalInfo *param_2,PosixTime *param_3)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 8 body lines_
+
+---
+
+## Phase 3: `nn::fs` — 2 functions
+
+### `nn::fs::MountRom`
+
+- **Address**: `0x7101413ca8`
+- **Body size**: 13 bytes
+- **Role**: filesystem / romfs
+- **Boot-closure callers**: sead::FileDeviceMgr
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::fs::MountRom(char *param_1,void *param_2,ulong param_3)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+### `nn::fs::QueryMountRomCacheSize`
+
+- **Address**: `0x7101413c98`
+- **Body size**: 13 bytes
+- **Role**: filesystem / romfs
+- **Boot-closure callers**: sead::FileDeviceMgr
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::fs::QueryMountRomCacheSize(ulong *param_1)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+---
+
+## Phase 1: `nn::init` — 1 function
+
+### `nn::init::InitializeAllocator`
+
+- **Address**: `0x7100dda018`
+- **Body size**: 80 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: Lp::Sys::SysInit::nninitStartup
+- **Observed signature**:
+
+```c
+void nn::init::InitializeAllocator(ulong param_1)
+```
+
+_Body: 3 distinct call targets; 9 body lines_
+
+---
+
+## Phase 2: `nn::nifm` — 1 function
+
+### `nn::nifm::Initialize`
+
+- **Address**: `0x7101413268`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: Lp::Sys::SysInit::Init
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::nifm::Initialize(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+---
+
+## Phase 2: `nn::diag` — 1 function
+
+### `nn::diag::detail::LogImpl`
+
+- **Address**: `0x7101412708`
+- **Body size**: 13 bytes
+- **Role**: logging
+- **Boot-closure callers**: Lp::Utl::dumpDateTime, Lp::Utl::dumpMemoryInfo
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::diag::detail::LogImpl(LogMetaData *param_1,char *param_2,...)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+---
+
+## Phase 2: `nn::oe` — 1 function
+
+### `nn::oe::Initialize`
+
+- **Address**: `0x71014121c8`
+- **Body size**: 13 bytes
+- **Role**: initialiser
+- **Boot-closure callers**: sead::PerformanceMgrNx::initialize
+- **Observed signature**:
+
+```c
+WARNING: Unknown calling convention -- yet parameter storage is locked void nn::oe::Initialize(void)
+```
+
+_Body: 1 distinct call targets; contains decompiler warnings; 7 body lines_
+
+---
+
+## Phase 2: `nn::util` — 1 function
+
+### `nn::util::VSNPrintf`
+
+- **Address**: `0x7101412a78`
+- **Body size**: 13 bytes
+- **Role**: logging
+- **Boot-closure callers**: sead::StringUtil::vsnprintf
+- **Observed signature**:
+
+```c
+void nn::util::VSNPrintf(void)
+```
+
+_Body: 1 distinct call targets; 6 body lines_
+
+---
+
+## Notes
+
+### Read the signatures with care
+
+**A thunk's signature is not the SDK's signature.** These functions are 13-byte
+import stubs that forward through a pointer, and the stub itself declares no
+parameters. Ghidra therefore renders many of them as `f(void)` — for example
+`void nn::os::GetTlsValue(void)` — even though the real SDK function takes
+arguments.
+
+**The real ABI is in the pointer type, not the stub.** A stub looks like:
 
 ```c
 void nn::os::GetSystemTick(void)
@@ -31,100 +790,27 @@ void nn::os::GetSystemTick(void)
 }
 ```
 
-**So the platform layer is not implemented in `main`.** The module declares these
-functions and calls them through pointers resolved at load time; the bodies live
-elsewhere. This is consistent with the ExeFS structure — `main` ships alongside
-`sdk` (2,962 KB), `rtld`, and `subsdk0`–`subsdk3`.
+The actual parameter list belongs to `PTR_GetSystemTick_*`. To recover a true
+signature, read the pointer's declared type at that address in the analysis, or
+inspect a **call site** in a caller function, where arguments are actually
+passed. `PORT_WORKLIST.md` lists those callers for every entry.
 
-### What this changes
+Signatures rendered with named parameters — for instance
+`nn::init::InitializeAllocator(ulong param_1)` or
+`nn::mem::StandardAllocator::StandardAllocator(StandardAllocator *this)` — came
+from functions that do have real bodies, and those are trustworthy.
 
-The [PORT_WORKLIST.md](PORT_WORKLIST.md) framing — *"implement these 51 functions"* —
-is **incomplete in an important way**. What `main` needs is for those 51 *imports* to
-resolve to something that works. That leaves two viable strategies, and neither is
-"decompile 51 function bodies":
+### Other caveats
 
-1. **Reimplement the imports** against the observed signatures below. This is what
-   the original plan assumed, and the signatures are now in hand — but there is no
-   reference implementation inside `main` to guide it.
-2. **Find the real implementations in `sdk`.** If `sdk` contains the actual
-   `nn::os`/`nn::mem`/`nn::vi` bodies, then the work is to analyse `sdk` rather than
-   to write these from scratch — and `sdk` is the same module the boot framework
-   (`Lp::Sys::SysInit`) already lives in.
-
-**Strategy 2 is likely much cheaper** and should be investigated before writing
-anything. The `sdk` module is 2,962 KB against `main`'s 23,162 KB.
-
-### The two functions with real bodies
-
-| Address | Function | Size |
-|---|---|---:|
-| `0x7100dda018` | `nn::init::InitializeAllocator` | 80 B |
-| `0x7100ddd6e4` | **`nvnLoadCProcs`** | **12,712 B** |
-
-`nvnLoadCProcs` is notable: it is the large function that **populates the NVN function
-table**, and [GRAPHICS_NVN.md](GRAPHICS_NVN.md) identified NVN's dispatch table as the
-key to making the GPU layer tractable. A 12.7 KB body that loads those procedures is
-the single most useful artefact found for the graphics path so far.
-
----
-
-## Observed ABI signatures
-
-Recovered from the code. Argument counts and types come from Ghidra's inference;
-naming may differ from the original SDK declaration, the ABI does not.
-
-### `nn::os` (24)
-
-| Function | Address | Observed signature |
-|---|---|---|
-| `AllocateMemoryBlock` | `0x7101413ec8` | `(ulong *param_1, ulong param_2)` |
-| `GetSystemTick` | `0x7101412298` | `(void)` |
-| `QueryMemoryInfo` | `0x71014141e8` | `(MemoryInfo *param_1)` |
-| `SetMemoryHeapSize` | `0x71014141f8` | `(ulong param_1)` |
-| `CreateThread` | `0x7101412ce8` | `(ThreadType *param_1, _func_void_void_ptr *param_2, void *param_3, void *param_4, ...)` |
-| `InitializeSemaphore` | `0x7101413ee8` | thunk |
-| `LockMutex` / `UnlockMutex` | — | thunks |
-| `InitializeMutex` | `0x7101412b38` | thunk |
-| `InitializeMessageQueue` | `0x7101412c48` | thunk |
-| `SleepThread` | — | thunk |
-| `AllocateTlsSlot` / `GetTlsValue` / `SetTlsValue` | — | thunks |
-| `GetCurrentThread`, `GetThreadId`, `GetThreadPriority` | — | thunks |
-| `ChangeThreadPriority`, `SetThreadCoreMask`, `SetThreadName` | — | thunks |
-| `GetCurrentCoreNumber`, `GetThreadAvailableCoreMask`, `GetCurrentStackInfo` | — | thunks |
-| `ConvertToTimeSpan` | — | thunk |
-
-The full per-function table, including callers and body statistics, is generated by
-`tools/static/build-platform-reference.mjs` and can be regenerated at any time.
-
-### `nv` / NVN
-
-`nvnLoadCProcs` (`0x7100ddd6e4`, 12,712 B) and `nvnBootstrapLoader` (`0x7101413d48`)
-are the two entries that matter here — see [GRAPHICS_NVN.md](GRAPHICS_NVN.md).
-
----
-
-## Reproduction
-
-```powershell
-# 1. build the address list straight from the worklist, so they cannot drift
-node tools/static/build-platform-addrs.mjs PORT_WORKLIST.md platform-addrs.txt
-
-# 2. decompile all of them against the already-analysed project
-& "$GHIDRA\support\pyghidraRun.bat" -H <project-dir> FullRun -process main -noanalysis `
-    -scriptPath <scripts> `
-    -postScript ExtractDecompiled.py platform-decompiled.txt (Get-Content platform-addrs.txt)
-
-# 3. assemble the reference
-node tools/static/build-platform-reference.mjs platform-decompiled.txt PORT_WORKLIST.md boot-closure.txt PLATFORM_REFERENCE.md
-```
-
-## Limits
-
-- **The pseudocode is not committed**, only the procedure. It is Ghidra's rendering of
-  Nintendo's code; regenerate it with the commands above.
-- **Thunk signatures are inferred from a single indirect call**, so argument types are
-  Ghidra's best guess. `QueryMemoryInfo(MemoryInfo *)` is credible; the variadic
-  `CreateThread` signature is less certain.
-- **`sdk` has not been analysed.** Whether it holds the real implementations is the
-  open question, and it is the highest-value next step.
-- **No function has been verified to recompile** to a matching binary.
+- Signatures are **observed** from the decompiled body, not declared in a
+  header. Naming may differ from the original SDK declaration; the ABI should
+  not.
+- Full pseudocode for every function is reproducible with
+  `tools/ghidra/ExtractDecompiled.py`; it is not committed here.
+- Functions marked **platform service (stub candidate)** should be stubbed
+  rather than implemented for the offline boot milestone.
+- **The platform layer is not implemented in `main`.** These 51 are imports; the
+  real implementations live in the `sdk` module (confirmed present there for
+  `nn::os` and `nn::mem::StandardAllocator`). See the finding in
+  [DECOMPILED_BODIES.md](DECOMPILED_BODIES.md) and analyse `sdk` before writing
+  any of this from scratch.
