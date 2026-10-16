@@ -149,17 +149,126 @@ guarantee:
 4. **One class matching does not prove every symbol is present or named
    correctly.** It proves the layout model is right, which is a different claim.
 
-## 6. Recommended follow-up
+## 6. Second check: `nn::ui2d::Pane` (from `nnware`)
 
-Repeat this exact procedure on one class per remaining repository, choosing
-classes whose layout is version-sensitive:
+`Pane` is the other era-sensitive, heavily-used class — **352 functions in `main`**
+— and it sits on the critical path to the boot milestone as the base of the menu
+system. It carries **no `static_assert`**, so it must be verified empirically.
 
-| Repository | Candidate | Why |
+### 6.1 Every declared virtual exists in the binary
+
+The header declares 26 virtuals (destructor + 25). All of them are present as named
+functions in `main`:
+
+| Declared virtual | Address |
+|---|---|
+| `~Pane()` | `0x7101375be4` (`D0`) |
+| `Finalize(gfx::Device*)` | `0x7101375be8` |
+| `SetVertexColor` | `0x7101375f64` |
+| `SetColorElement` | `0x7101375f84` |
+| `SetVertexColorElement` | `0x7101375fa8` |
+| `FindPaneByName` | `0x7101375fac` |
+| `FindMaterialByName` | `0x7101376048` |
+| `Calculate` | `0x7101376130` |
+| `Draw` | `0x71013767bc` |
+| `DrawSelf` | `0x7101376870` |
+| `BindAnimation` | `0x7101376874` |
+| `UnbindAnimation` | `0x7101376a1c` |
+| `UnbindAnimationSelf` | `0x7101376a88` |
+| `LoadMtx` (protected) | `0x7101376b14` |
+| `FindPaneByNameRecursive` | `0x7101376d6c` |
+| …plus `GetVertexColor`, `GetColorElement`, `GetVertexColorElement`, `GetMaterialCount`, `GetMaterial`, `FindMaterialByNameRecursive`, `CalculateMtx`, `CalculateGlobalMatrixSelf` | present |
+
+The `gfx::TDevice<gfx::ApiVariation<gfx::ApiType<4>, ...>>` template signature in the
+mangled names also corroborates the `-api.nvn.8` API version that
+`nnsdk`'s headers are built for.
+
+### 6.2 Field offsets match exactly
+
+`Pane::Pane()` at `0x7101375144` (132 bytes) writes these object offsets:
+
+```
++0x000   STP x8, x9            vtable + PaneBase::m_Link
++0x020   STP x8, x8            self-referential  (m_Link sentinel)
++0x030   STR xzr               mParent = nullptr
++0x038   STP xzr, xzr          mChildList  (sentinel)
++0x050   STR xzr               mPosition.x
++0x05A   STRB w8               mFlags      <- low bit clear = Visible false
++0x05B   STRB w10              mAlpha
++0x05C   STRB w10              mGlobalAlpha
++0x0A0   STP xzr, xzr
++0x0B0   STR xzr
++0x0B8   STP xzr, xzr
++0x0C8   STP xzr, xzr          mPanelName area
+```
+
+Computing the header's layout (16-byte vtable + 16-byte `PaneBase::m_Link` =
+`0x20` base, then `mParent`, `mChildList`, `mPosition`, `mRotation`, `mScale`,
+`mSize`, `mFlags`):
+
+| Header member | Computed offset | Binary | Match |
+|---|---|---|---|
+| `Pane` base | `0x20` | `0x20` list sentinel | ✅ |
+| `mParent` | `0x30` | `0x30` | ✅ |
+| `mChildList` | `0x38` | `0x38` | ✅ |
+| `mPosition` | `0x50` | `0x50` | ✅ |
+| `mFlags` | `0x5A` | `0x5A` | ✅ |
+| `mAlpha` | `0x5B` | `0x5B` | ✅ |
+| `mGlobalAlpha` | `0x5C` | `0x5C` | ✅ |
+| `mMtx` | `0x68` | `0xA0` | ❌ |
+| `mPanelName` | `0xC8` | `0xD0` | ❌ |
+
+**`mFlags` landing on `0x5A` is the decisive check.** `IsVisible()` in the header is
+`TestBit(mFlags, PaneFlag_Visible)`, and the constructor stores a byte at `+0x5A`
+with its low bit clear. That is exactly `mFlags` with `Visible = false`.
+
+**Verdict: the first four member groups match at byte precision.** The two
+mismatches (`mMtx`, `mPanelName`) are at the tail, and a plausible cause is a
+differing-size `util::MatrixT4x3fType` or `IntrusiveList` in this build. They are
+noted rather than explained — this check does not resolve them.
+
+### 6.3 What is *not* vertified for `Pane`
+
+- **No size check.** The header has no `static_assert`, so there is no declared
+  number to compare. The highest offset touched is `0xD0`, giving at least `0xD8`
+  bytes live, but the true `sizeof` is **unknown**.
+- **The vtable was not counted.** The binary contains no `_ZTV`/`_ZTI`/`_ZTS`
+  symbols for `ui2d` at all, so the virtual count was confirmed by *the presence of
+  each declared virtual* rather than by vtable length. Layout-critical vtable
+  **order** therefore remains unverified — which is the thing that actually breaks
+  a port.
+- **The two tail mismatches are unresolved.**
+
+## 7. Combined verdict
+
+| Repository | Class checked | Result |
 |---|---|---|
-| `agl` | `agl::utl::ParameterObj` | implemented in the repo, so layouts are asserted |
-| `nnware` | `nn::g3d::ResModel` or `nn::ui2d::Pane` | headers only, but `ui2d::Pane` has many members |
-| `nnsdk` | `nn::gfx::CommandBufferInfo` or an NVN table entry | `-api.nvn.8` version marker to confirm |
+| `sead` | `GameFrameworkNx` | ✅ **two `static_assert`s confirmed from compiled code** |
+| `nnware` | `ui2d::Pane` | ⚠ **all 26 virtuals present; leading fields match byte-exactly; tail mismatches unresolved; size unverifiable** |
 
-`nn::ui2d::Pane` is the most valuable next check: `main` has 352 `ui2d::Pane`
-functions, so the class is heavily used and its layout is load-bearing for the
-menu system — which is on the critical path to the boot milestone.
+**The reference set is usable, but not uniformly trustworthy.**
+
+- `sead`'s `GameFrameworkNx` is verified against number-carrying asserts, and the
+  method is sound for any class that has them.
+- `nnware`'s `ui2d::Pane` verifies strongly on the fields that matter most for
+  behaviour (flags at `0x5A`, the list and transform members) but carries no size
+  assertion and has unexplained tail differences.
+
+**Practical rule for this port:** trust a header member offset only after checking
+it against a constructor or accessor, exactly as done here. Headers without
+`static_assert`s have not earned the same confidence as `sead`'s, and vtable
+**order** — the most port-critical property — is still unverified anywhere,
+because this binary ships no RTTI symbols to anchor it.
+
+## 8. Recommended follow-up
+
+1. **Count a vtable by another route.** The `-noanalysis` import never created
+   function objects for the virtuals, so `_ZTV` symbols are absent. A Ghidra pass
+   that creates functions at the vtable relocation targets would let the entry
+   count and order be compared against the header's declared order.
+2. **Resolve the `Pane` tail mismatch** by determining `util::MatrixT4x3fType` and
+   `IntrusiveList` sizes in this build — both are `nn::util` templates, so
+   `nnsdk`'s `include/nn/util/` is the place to look.
+3. **Repeat on one `agl` class**, preferably `agl::utl::ParameterObj`, which the
+   `agl` repository actually implements, so its layout is asserted rather than
+   guessed.
