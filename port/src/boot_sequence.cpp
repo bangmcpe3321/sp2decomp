@@ -9,6 +9,7 @@
 #include "lp/recon.hpp"
 #include "lp/utl.hpp"
 #include "sead/delegate_event.hpp"
+#include "sead/framework_args.hpp"
 #include "nn/os.hpp"
 
 #include <cstdio>
@@ -98,7 +99,11 @@ void SequenceBody(Runner &r) {
     });
 
     // --- step 4: sead::Framework::InitializeArg::InitializeArg ---------------------
-    r.missing("sead::Framework::InitializeArg::InitializeArg", kInitializeArgCtor);
+    // Now ported (port/src/framework_args.cpp), so this RUNS.
+    r.step("sead::Framework::InitializeArg::InitializeArg", [] {
+        static sead::Framework::InitializeArg sArg;
+        (void)sArg;
+    });
 
     // --- step 5: sead::GameFrameworkNx::initialize ---------------------------------
     r.missing("sead::GameFrameworkNx::initialize", kGameFrameworkInitialize);

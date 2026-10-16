@@ -18,6 +18,7 @@ add_library(nnos STATIC
   src/utl.cpp
   src/boot_sequence.cpp
   src/delegate_event.cpp
+  src/framework_args.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -50,6 +51,8 @@ if(SP2PORT_BUILD_TESTS)
   # matched empirically instead of guessed. Not a test.
   add_executable(layout_probe tests/layout_probe.cpp)
   target_link_libraries(layout_probe PRIVATE nnos)
+  add_executable(runarg_probe tests/runarg_probe.cpp)
+  target_link_libraries(runarg_probe PRIVATE nnos)
 
   # The first RECONSTRUCTED ENGINE functions (ports of decompiled bodies).
   add_executable(engine_tests tests/engine_tests.cpp)
@@ -70,5 +73,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(delegate_event_tests tests/delegate_event_tests.cpp)
   target_link_libraries(delegate_event_tests PRIVATE nnos)
   add_test(NAME delegate_event_contract COMMAND delegate_event_tests)
+
+  # sead::Framework::InitializeArg / RunArg constructors.
+  add_executable(framework_args_tests tests/framework_args_tests.cpp)
+  target_link_libraries(framework_args_tests PRIVATE nnos)
+  add_test(NAME framework_args_contract COMMAND framework_args_tests)
 
 endif()
