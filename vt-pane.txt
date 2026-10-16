@@ -1,0 +1,55 @@
+Vtable discovery by content
+relocated slots mapped: 251653
+
+anchor virtuals (relative VA): 0x104a9ac, 0x1375924, 0x1375be8, 0x1375f64, 0x1375f84, 0x1375fa8, 0x1375fac, 0x1376038, 0x1376048, 0x1376120, 0x1376130, 0x137636c, 0x13767bc, 0x1376870, 0x1376874, 0x1376a1c, 0x1376a88, 0x1376b14, 0x1376b44, 0x1376ed4, 0x1376ef0
+
+distinct candidate runs: 74
+  run 0x2f5c7d0..0x2f5c980  entries=55  (contains anchor 0x104a9ac)
+  run 0x2f5bde8..0x2f5bf90  entries=54  (contains anchor 0x104a9ac)
+  run 0x2f5c9f0..0x2f5cb98  entries=54  (contains anchor 0x104a9ac)
+  run 0x2f5cc08..0x2f5cdb0  entries=54  (contains anchor 0x104a9ac)
+  run 0x2f5c000..0x2f5c1a0  entries=53  (contains anchor 0x104a9ac)
+
+candidates scored by fraction of entries declared by nn::ui2d::Pane:
+  0x2f8de10..0x2f8def0  entries=29  pane-fraction=97%  anchors=16
+  0x2f21040..0x2f21118  entries=28  pane-fraction=89%  anchors=16
+  0x2f212c8..0x2f213a0  entries=28  pane-fraction=89%  anchors=15
+  0x2f5e0e8..0x2f5e1d0  entries=30  pane-fraction=87%  anchors=16
+  0x2f203a8..0x2f20480  entries=28  pane-fraction=86%  anchors=15
+  0x2f20498..0x2f20570  entries=28  pane-fraction=86%  anchors=15
+
+SELECTED run 0x2f8de10..0x2f8def0  entries=29  anchors matched=16/21
+
+| index | slot (rel) | target (rel) | target (abs) | symbol |
+|---:|---|---|---|---|
+| 0 | 0x2f8de10 | 0x2f8df10 | 0x7102f8df10 | <no symbol> |
+| 1 | 0x2f8de18 | 0x137513c | 0x710137513c | nn::ui2d::Pane |
+| 2 | 0x2f8de20 | 0x1375be4 | 0x7101375be4 | nn::ui2d::Pane |
+| 3 | 0x2f8de28 | 0x1258f18 | 0x7101258f18 | _ZNK2nn4ui2d4Pane18GetRuntimeTypeInfoEv |
+| 4 | 0x2f8de30 | 0x1375be8 | 0x7101375be8 | nn::ui2d::Pane::Finalize |
+| 5 | 0x2f8de38 | 0x1375f5c | 0x7101375f5c | _ZNK2nn4ui2d4Pane14GetVertexColorEi |
+| 6 | 0x2f8de40 | 0x1375f64 | 0x7101375f64 | nn::ui2d::Pane::SetVertexColor |
+| 7 | 0x2f8de48 | 0x1375f68 | 0x7101375f68 | _ZNK2nn4ui2d4Pane15GetColorElementEi |
+| 8 | 0x2f8de50 | 0x1375f84 | 0x7101375f84 | nn::ui2d::Pane::SetColorElement |
+| 9 | 0x2f8de58 | 0x1375fa0 | 0x7101375fa0 | _ZNK2nn4ui2d4Pane21GetVertexColorElementEi |
+| 10 | 0x2f8de60 | 0x1375fa8 | 0x7101375fa8 | nn::ui2d::Pane::SetVertexColorElement |
+| 11 | 0x2f8de68 | 0x1376bf4 | 0x7101376bf4 | _ZNK2nn4ui2d4Pane16GetMaterialCountEv |
+| 12 | 0x2f8de70 | 0x1376bfc | 0x7101376bfc | _ZNK2nn4ui2d4Pane11GetMaterialEi |
+| 13 | 0x2f8de78 | 0x1375fac | 0x7101375fac | nn::ui2d::Pane::FindPaneByName |
+| 14 | 0x2f8de80 | 0x1376038 | 0x7101376038 | _ZNK2nn4ui2d4Pane14FindPaneByNameEPKcb |
+| 15 | 0x2f8de88 | 0x1376048 | 0x7101376048 | nn::ui2d::Pane::FindMaterialByName |
+| 16 | 0x2f8de90 | 0x1376120 | 0x7101376120 | _ZNK2nn4ui2d4Pane18FindMaterialByNameEPKcb |
+| 17 | 0x2f8de98 | 0x1376874 | 0x7101376874 | nn::ui2d::Pane::BindAnimation |
+| 18 | 0x2f8dea0 | 0x1376a1c | 0x7101376a1c | nn::ui2d::Pane::UnbindAnimation |
+| 19 | 0x2f8dea8 | 0x1376a88 | 0x7101376a88 | nn::ui2d::Pane::UnbindAnimationSelf |
+| 20 | 0x2f8deb0 | 0x104a9ac | 0x710104a9ac | nn::ui2d::Pane::CalculateMtx |
+| 21 | 0x2f8deb8 | 0x1376130 | 0x7101376130 | nn::ui2d::Pane::Calculate |
+| 22 | 0x2f8dec0 | 0x13767bc | 0x71013767bc | nn::ui2d::Pane::Draw |
+| 23 | 0x2f8dec8 | 0x1376870 | 0x7101376870 | nn::ui2d::Pane::DrawSelf |
+| 24 | 0x2f8ded0 | 0x1376b14 | 0x7101376b14 | nn::ui2d::Pane::LoadMtx |
+| 25 | 0x2f8ded8 | 0x1376d6c | 0x7101376d6c | nn::ui2d::Pane::FindPaneByNameRecursive |
+| 26 | 0x2f8dee0 | 0x1376df4 | 0x7101376df4 | _ZNK2nn4ui2d4Pane23FindPaneByNameRecursiveEPKc |
+| 27 | 0x2f8dee8 | 0x1376e00 | 0x7101376e00 | nn::ui2d::Pane::FindMaterialByNameRecursive |
+| 28 | 0x2f8def0 | 0x1376ec8 | 0x7101376ec8 | _ZNK2nn4ui2d4Pane27FindMaterialByNameRecursiveEPKc |
+
+entries with a symbol: 28 / 29
