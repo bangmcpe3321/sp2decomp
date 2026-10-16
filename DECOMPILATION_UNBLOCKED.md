@@ -1,41 +1,68 @@
 # Unblocking real decompilation
 
-**Status: unblocked and verified end-to-end.** REA drives Ghidra on this target, and
-a real Nintendo Switch module has been analysed to a real procedure inventory.
-
-This document records the working procedure so it can be reproduced.
+**Status: solved and verified.** REA drives Ghidra on this target, and **real
+decompiled function bodies have been obtained** from a Nintendo Switch module.
 
 ---
 
-## 0. Verification (the important part)
+## 0. Verification: an actual function body
 
-`rtld` — the 13 KB runtime loader from the same ExeFS — was put through the whole
-pipeline:
+`rtld` — the 13 KB runtime loader from the same ExeFS — went through the whole
+pipeline, ending in decompiled C:
 
 | Step | Result |
 |---|---|
 | hactool decompressed `rtld` NSO | 4 sections, build id `F6824124…` |
 | `nso2elf.mjs` rebuilt it as ELF64 AArch64 | 30,088 bytes, 5 program headers |
 | `validate-elf.mjs` structural check | **VALID — no structural problems found** |
-| `rea inspect --provider ghidra` | **exit 0**, evidence `ev_9318b02b…`, format `elf`, arch `arm64` |
-| analysis result | **`procedure_count: 56`**, plus `segment_count`, `string_count`, `image_base` |
-| `rea analyze --format md` | **exit 0**, 7,719-byte overview |
+| `rea inspect --provider ghidra` | exit 0, format `elf`, arch `arm64`, **`procedure_count: 56`** |
+| **`rea decompile 0x1000 --provider ghidra`** | **exit 0, 22,578 bytes, `operation: procedure_pseudo_code`** |
+| payload | **9,433 characters of Ghidra decompiled C** |
 
-**Ghidra analysed a Nintendo Switch ARM64 module and reported a procedure
-inventory.** That is the deliverable that was missing: real analysis, not
-hand-written decoding.
+The output is genuine, not a stub — it identifies itself as the loader and contains
+real control flow:
 
-Sample of what the result contains:
-
-```json
-"subject":     { "format": "elf", "architecture": "arm64",
-                 "digest": { "sha256": "aade48b6…" } }
-"provider":    { "id": "ghidra", "version": "12.1.2" }
-"normalized_result": { "document": …, "image_base": …, "segments": …,
-                       "segment_count": …,
-                       "procedure_count": 56, "string_count": … }
-"confidence":  "derived"
+```c
+void FUN_00000de0(long param_1, uint param_2)
+{
+  ...
+  pcVar3 = DAT_000053a8;
+  uVar4 = *(ulong *)(param_1 + 0x88);
+  uVar13 = *(ulong *)(param_1 + 0x90);
+  if (uVar13 < uVar4 >> 4) {
+    ...
+    do {
+      lVar11 = *(long *)(param_1 + 0x18);
+      uVar8 = *(ulong *)(lVar11 + lVar15 + 8);
+      iVar7 = (int)uVar8;
+      if ((iVar7 - 0x101U < 2) || (iVar7 == 0x401)) {
+        ...
+        uVar4 = FUN_00000c5c(param_1, &local_68, local_98);
+        if ((uVar4 & 1) == 0) {
+          if (*pcVar3 != '\0') {
+            lVar11 = *(long *)(param_1 + 0x60) + uVar8;
+            uVar5 = FUN_00001704("[rtld] warning: unresolved symbol = '");
+            FUN_000014e4("[rtld] warning: unresolved symbol = '", uVar5);
 ```
+
+That string — `[rtld] warning: unresolved symbol = '` — is `rtld` describing its own
+job. **This is a decompiled Nintendo Switch loader function.**
+
+Evidence: `ev_73f0bc75bc81621242ef102c41fafab8e4e9ff40f719a1d013385462d4189b5b`,
+provider `ghidra 12.1.2`.
+
+### The one argument that mattered
+
+`rea decompile <path> 0x0` **fails**, and the message explains why:
+
+> *"File offset 0x0 maps to analysis address `_elfHeader:0x0`, but no procedure starts
+> at or contains that address."*
+
+`0x0` is the ELF header in the reconstructed image, not code. The first real code
+address is **`0x1000`**. That single detail was the difference between two failed
+attempts and a successful decompilation.
+
+---
 
 ## 1. What was blocked, and why
 
@@ -48,37 +75,34 @@ code: target_format_unsupported
 ```
 
 Both an ELF and a headerless `--architecture arm64` attempt were rejected. That
-restriction is **Windows-specific**, and it is the reason every analysis in this
-repository was done with hand-written ARM64 decoding rather than a decompiler.
+restriction is **Windows-specific**, and it is why every earlier analysis in this
+repository used hand-written ARM64 decoding.
 
 ## 2. The fix: run REA on Linux, via WSL
 
-This machine already had **WSL2 with Ubuntu**. That is enough, and it required **no
-root password** — Node and a JDK were installed entirely under `$HOME`.
-
-### Environment that works
+This machine already had **WSL2 with Ubuntu**. That is enough, and it needed **no root
+password** — Node and a JDK install entirely under `$HOME` from prebuilt tarballs.
 
 | Component | Version / path |
 |---|---|
 | Host | `ubuntu 26.04` (WSL2, x86_64) |
-| Node | v24.22.0, self-contained at `~/tools/node` |
+| Node | v24.22.0 at `~/tools/node` |
 | JDK | Temurin 21.0.12.1 at `~/tools/jdk21` |
-| REA | `rea-agents@6.5.0`, npm prefix `~/.npm-global` |
-| Ghidra | the **existing Windows install**, reused via `/mnt/c/...` |
+| REA | `rea-agents@6.5.0`, prefix `~/.npm-global` |
+| Ghidra | the **existing Windows install**, reused via `/mnt/c` |
 
-Two details make this cheap:
+Two details made this cheap:
 
-1. **The Windows Ghidra install is reusable as-is.** It already ships
-   `Ghidra/Features/Decompiler/os/linux_x86_64/` alongside `win_x86_64`, so the
-   Linux-native decompiler was present the whole time — no second Ghidra download.
-2. **No `sudo` needed.** `apt` is not required: Node and the JDK are prebuilt
-   tarballs extracted into `$HOME`.
+1. **The Windows Ghidra install is reusable as-is** — it already ships
+   `Ghidra/Features/Decompiler/os/linux_x86_64/` beside `win_x86_64`, so no second
+   Ghidra download was needed.
+2. **No `sudo`.** `apt` is not required; Node and the JDK are prebuilt tarballs.
 
-### `rea doctor` on the Linux side
+`rea doctor` on Linux passes every check, including `ghidra-java` — which on Windows
+passed only under sandbox escalation:
 
 ```
 host                      ok=True   ubuntu 26.04
-ghidra                    ok=True   /mnt/c/.../ghidra_12.1.2_PUBLIC
 ghidra-platform           ok=True   linux
 ghidra-architecture       ok=True   x64
 ghidra-version            ok=True   12.1.2; compatible 12.1.x release
@@ -88,98 +112,69 @@ ghidra-java               ok=True   21.0.12.1; 64-bit; JDK; ~/tools/jdk21
 provider ghidra: configured=True available=True version=12.1.2
 ```
 
-Every check passes, including `ghidra-java` — which on Windows could only pass under
-sandbox escalation.
+REA then launches its own private headless Ghidra over a unix socket
+(`transport: unix-socket`), and the target is accepted.
 
-### The target is now accepted
+## 3. `main` specifically: a timeout, not a wall
 
-The same call that returned `target_format_unsupported` on Windows now proceeds:
-
-```
-transport     : unix-socket
-provider      : ghidra 12.1.2
-target_sha256 : 00e62df4e623b34adda1af2fa397ddfc436ee8c460c00acb84db1a6b851c738f
-runtime_root  : /tmp/rea-ghidra-6xVm7K
-project_root  : /tmp/rea-ghidra-6xVm7K/project
-ghidra_log    : /tmp/rea-ghidra-6xVm7K/ghidra.log
-process_id    : 788
-```
-
-REA launched its own private headless Ghidra, on a unix socket, and Ghidra began
-importing the target — visible in the captured stdout:
+The 21 MB `main` did not finish within REA's budget:
 
 ```
-INFO  Searching for classes... (ClassSearcher)
-INFO  Class search complete (1496 ms)
-INFO  Loading user preferences: /tmp/rea-ghidra-6xVm7K/config/...
-INFO  Headless s...
+code: provider_timeout   retryable: true   timeout_ms: 330000
 ```
 
-## 3. `main` specifically: still a timeout, not a wall
+That is an **analysis-duration budget against 113,150 functions**. Capability is
+proven by `rtld`; `main` is simply too large for a per-request budget.
 
-The 21 MB `main` did **not** finish:
+**An uncapped pre-analysis of `main` is running** on the Linux side
+(`tools/wsl/wsl-preanalyze.sh`), copying the input into the Linux filesystem first to
+avoid `/mnt/c` I/O, and writing an inventory via `ExportInventory.py` when it
+completes. It has no wrapper timeout by design.
 
-```
-code: provider_timeout   category: timeout   retryable: true
-timeout_ms: 330000
-```
+## 4. Next steps, in expected-payoff order
 
-This is an **analysis-duration budget (330 s) against 113,150 functions**. The
-capability is present — `rtld` proves the pipeline works; `main` is simply too large
-for the budget.
-
-So the remaining work for `main` is to make the analysis cheaper, not to find another
-route.
-
-## 4. Next steps, in order of expected payoff
-
-1. **Pre-analyse `main` once with the cap removed, then reuse.** Run
-   `analyzeHeadless` directly to completion on the Linux side and save the project,
-   paying the cost once instead of per request. This is the most direct path.
-2. **Copy the Ghidra install into the Linux filesystem.** It currently runs across
-   `/mnt/c`, which is slow Windows I/O; a native-path install should measurably
-   speed up analysis.
-3. **Use the Python bridge directly.** `nnsdk`'s PyGhidra route, or `analyzeHeadless`
-   with a custom postScript, bypasses REA's 330 s per-request budget entirely.
-4. **Work at `rtld`/`subsdk1` scale while `main` is prepared.** `rtld` (56
-   procedures) is already analysable; `subsdk1` is 67 KB and should fit.
+1. **Let the uncapped `main` pre-analysis finish**, then reuse the saved project
+   instead of paying analysis cost per request.
+2. **Install SwitchLoader on the Linux Ghidra side** and point REA at the *original
+   NSO*. That yields **named** functions (`Game::PlayerInkAction::shotBullet_B`)
+   instead of `FUN_00000de0`. This is the single highest-value improvement — the
+   binary carries 113,150 real names and the reconstructed ELF has none.
+3. **Copy the Ghidra install into the Linux filesystem** to avoid slow `/mnt/c` I/O.
+4. **Work at `rtld`/`subsdk1` scale meanwhile** — `rtld` works now; `subsdk1` is 67 KB.
 
 ## 5. Why this matters for the repository
 
-Everything before this was produced by **hand-written ARM64 decoding** —
-`arm64-callgraph.mjs`, `boot-closure.mjs`, `layout-disasm.mjs`, `vt-by-content.mjs`
-and the rest. That approach was chosen because no decompiler could be driven, and it
-worked: closure, layout and vtable order were all established from raw bytes.
+Everything before this came from **hand-written ARM64 decoding** —
+`arm64-callgraph.mjs`, `boot-closure.mjs`, `layout-disasm.mjs`, `vt-by-content.mjs`.
+That was necessary because no decompiler could be driven, and it worked: closure,
+layout and vtable order were all established from raw bytes.
 
-It is also the reason those results carry the caveats they do — no function bodies,
-`BLR` targets invisible, devirtualisation impossible. **A working decompiler removes
-all of those limitations at once.** This is the highest-leverage change available to
-the project.
+It is also why those results carry the caveats they do — no function bodies, `BLR`
+targets invisible, devirtualisation impossible. **A working decompiler removes all of
+those at once**, and that is now demonstrated rather than hoped for.
 
 ## 6. Reproduce
 
 ```bash
-# on the Windows side, from an elevated shell
+# from an elevated Windows shell
 wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-install-node.sh
 wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-install-jdk.sh
 wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-probe-rea.sh
 wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-verify-small.sh
+wsl -d Ubuntu -- bash /mnt/c/Users/Hexa/Documents/nintendo/re-work/wsl-get-body.sh
 ```
 
-The scripts are committed under `tools/wsl/`.
+Scripts are committed under `tools/wsl/`.
 
-## 7. Honest limits of this result
+## 7. Honest limits
 
-- **A procedure *inventory* was obtained, not yet a function *body*.** `rtld` yields
-  `procedure_count: 56` and a clean overview, but no pseudocode text was captured.
-  Two attempts at `rea decompile` failed on argument handling, not on capability:
-  address `0x0` is not a procedure (Ghidra places the ELF header there; the message
-  helpfully said so and recommended `rea search --kind procedures` to enumerate
-  valid addresses). Enumerating procedure addresses and decompiling one is the
-  remaining mechanical step.
-- **A `rea search --kind procedures` attempt timed out** and produced no output.
-- **`main` is not analysable within REA's 330 s budget** on either platform as
-  configured; that figure comes from one call and may be configurable.
-- **Analysis cost has never been timed to completion** on any platform, so
-  "pre-analyse once" is a reasoned recommendation, not a measured one.
-- **`/mnt/c` I/O is unmeasured** but is a plausible contributor to the slowness.
+- **`main` has no function bodies yet.** Only `rtld` does, and the uncapped run's
+  outcome is unknown.
+- **One function was decompiled** (`FUN_00000de0`). That proves the pipeline; it does
+  not survey a module.
+- **The symbols are unnamed** (`FUN_*`) because this is a *reconstructed* ELF with no
+  symbol table. Reading the original NSO directly needs SwitchLoader on the Linux
+  Ghidra side, which is not yet installed.
+- **REA's 330 s budget was not confirmed configurable.**
+- **The Windows headless run of `main` was still progressing** when last checked and
+  may yet finish independently.
