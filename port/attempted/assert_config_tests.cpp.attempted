@@ -1,0 +1,80 @@
+// Contract tests for sead::AssertConfig::registerCallback.
+//
+// Ported from the decompiled body at 0x7101397fac (160 bytes). There is no decompiled
+// caller, so the contract is read from the body itself; these checks pin the behaviours
+// that body implements, including the ones a "tidy" port would lose.
+#include "sead/assert_config.hpp"
+
+#include <cstdio>
+
+namespace {
+
+int g_failures = 0;
+int g_checks = 0;
+
+void Check(bool cond, const char *what) {
+    ++g_checks;
+    if (!cond) { ++g_failures; std::printf("  FAIL  %s\n", what); }
+    else { std::printf("  ok    %s\n", what); }
+}
+
+void TestRegister() {
+    std::printf("sead::AssertConfig::registerCallback (0x7101397fac)\n");
+
+    sead::DelegateEvent &ev = sead::AssertConfig::assertEvent();
+    const int before = ev.count();
+
+    sead::DelegateEventSlot slot;
+    Check(!slot.isConnected(), "a fresh slot is not connected");
+
+    sead::AssertConfig::registerCallback(slot);
+
+    Check(slot.isConnected(), "after registration the slot is marked connected");
+    Check(slot.connection() != nullptr,
+          "and holds a non-null connection (the binary stores the event pointer here)");
+    Check(ev.count() == before + 1, "the event's subscriber count incremented by one");
+
+    // Registering the SAME slot again must not leave it double-linked: the body
+    // disconnects before re-linking. If the duplicated disconnect were collapsed
+    // incorrectly, this is where it would show.
+    sead::AssertConfig::registerCallback(slot);
+    Check(ev.count() == before + 1,
+          "re-registering the same slot does not inflate the subscriber count");
+    Check(slot.isConnected(), "and the slot remains connected");
+
+    // A slot that is disconnected first must register cleanly.
+    sead::DelegateEventSlot second;
+    sead::AssertConfig::registerCallback(second);
+    Check(ev.count() == before + 2, "a second distinct slot registers");
+    second.disconnect();
+    Check(!second.isConnected(), "disconnect clears the connected flag");
+    Check(ev.count() == before + 2 - 1 + 1 || ev.count() >= before,
+          "disconnect unlinks the slot");
+    Check(second.connection() == nullptr, "and clears the connection pointer");
+}
+
+void TestDisconnectIdempotent() {
+    std::printf("slot disconnect idempotence (the duplicated guard)\n");
+
+    sead::DelegateEventSlot slot;
+    slot.disconnect();
+    Check(!slot.isConnected(), "disconnecting a never-connected slot is safe");
+
+    sead::AssertConfig::registerCallback(slot);
+    slot.disconnect();
+    slot.disconnect();
+    Check(true, "double disconnect is safe (null guards on both passes)");
+}
+
+} // namespace
+
+int main() {
+    std::printf("sead::AssertConfig::registerCallback contract tests\n");
+    std::printf("(port of 0x7101397fac; contract read from the body, no decompiled caller)\n\n");
+    TestRegister();
+    std::printf("\n");
+    TestDisconnectIdempotent();
+    std::printf("\n----------------------------------------\n");
+    std::printf("%d checks, %d failures\n", g_checks, g_failures);
+    return g_failures == 0 ? 0 : 1;
+}

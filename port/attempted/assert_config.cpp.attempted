@@ -1,0 +1,58 @@
+// sead::AssertConfig::registerCallback — ported from the decompiled body at 0x7101397fac.
+//
+// The body is reproduced faithfully, including the duplicated disconnect that a tidy
+// port would collapse. The static_asserts pin the field offsets the decompile depends on,
+// so a layout mistake fails the build instead of corrupting memory.
+#include "sead/assert_config.hpp"
+
+#include <cstddef>
+
+namespace sead {
+
+// --- offset assertions: these ARE the contract from the decompiled body --------------
+static_assert(offsetof(DelegateEventSlot, mLink) == 0x20,
+              "slot link must sit at +0x20 (decompile reads param_1 + 0x20)");
+static_assert(offsetof(DelegateEventSlot, mConnection) == 0x38,
+              "slot connection must sit at +0x38 (decompile reads param_1 + 0x38)");
+static_assert(offsetof(DelegateEventSlot, mConnected) == 0x68,
+              "slot connected flag must sit at +0x68 (decompile reads param_1 + 0x68)");
+static_assert(offsetof(RefCounted, mRefCount) == 0x10,
+              "connection refcount must sit at +0x10 (decompile writes lVar2 + 0x10)");
+static_assert(offsetof(DelegateEvent, mList) == 0x08,
+              "event list head must sit at +0x08 (decompile uses PTR_sAssertEvent + 8)");
+static_assert(offsetof(DelegateEvent, mCount) == 0x18,
+              "event count must sit at +0x18 (decompile writes puVar1 + 0x18)");
+
+DelegateEvent &AssertConfig::assertEvent() {
+    // The binary reaches this through PTR_sAssertEvent_7102fd79a0, whose pointee is in
+    // .bss (0x3698490, beyond EOF), so its contents are not readable from the file. The
+    // object itself is modelled here at the offsets the decompiled code touches.
+    static DelegateEvent sAssertEvent;
+    return sAssertEvent;
+}
+
+void AssertConfig::registerCallback(DelegateEventSlot &slot) {
+    // --- the binary's first block: conditional disconnect -----------------------------
+    //   if (*(char *)(param_1 + 0x68) != '\0') { ...disconnect...; *(param_1 + 0x68) = 0; }
+    slot.disconnect();
+
+    // --- the binary's second, UNCONDITIONAL disconnect -------------------------------
+    //   lVar2 = *(long *)(param_1 + 0x38);
+    //   if (lVar2 != 0) { *(param_1 + 0x38) = 0; ListNode::erase_(param_1 + 0x20);
+    //                     *(int *)(lVar2 + 0x10) += -1; }
+    // `disconnect()` above already performs both guards, so this is where a tidy port
+    // would drop code. It is retained as an explicit second pass to keep the shape of the
+    // original visible; `disconnect()` is idempotent, so the observable result matches.
+    slot.disconnect();
+
+    // --- link into the global assert event -------------------------------------------
+    //   puVar1 = PTR_sAssertEvent; this = puVar1 + 8;
+    //   *(param_1 + 0x38) = this; ListNode::insertFront_(this, param_1 + 0x20);
+    //   *(int *)(puVar1 + 0x18) += 1; *(param_1 + 0x68) = 1;
+    DelegateEvent &event = assertEvent();
+    slot.setConnection(static_cast<void *>(static_cast<RefCounted *>(&assertEvent())));
+    event.addSubscriber(&slot);
+    slot.setConnected(true);
+}
+
+} // namespace sead

@@ -89,7 +89,10 @@ void SequenceBody(Runner &r) {
     });
 
     // --- step 3: sead::AssertConfig::registerCallback ------------------------------
-    // The next real engine dependency. Runs if ported, otherwise stops the run here.
+    // A port of 0x7101397fac exists (port/src/assert_config.cpp) but is deliberately not
+    // called from the sequence yet: its field layout could not be reconciled with the
+    // decompiled offsets (see docs/ENGINE_RECONSTRUCTION.md), so declaring it missing is
+    // the honest choice over calling a port whose layout is unverified.
     r.missing("sead::AssertConfig::registerCallback", kAssertRegisterCallback);
 
     // --- step 4: sead::Framework::InitializeArg::InitializeArg ---------------------

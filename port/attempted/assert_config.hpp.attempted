@@ -1,0 +1,111 @@
+// sead::DelegateEvent / Slot — the delegate mechanism sead::AssertConfig::registerCallback
+// operates on.
+//
+// CONTRACT SOURCE. There is no decompiled *caller* of registerCallback, so its contract
+// cannot be inferred from usage. It is read directly from the decompiled body at
+// 0x7101397fac (160 bytes), which touches these exact offsets:
+//
+//   slot  + 0x20   ListNode   (the slot's link in the event's subscriber list)
+//   slot  + 0x38   void*      (the DelegateEvent this slot is connected to)
+//   slot  + 0x68   char       (connected flag: 1 after a successful registration)
+//   conn  + 0x10   int        (the connection's reference count)
+//   event + 0x08   ListNode   (head of the subscriber list)
+//   event + 0x18   int        (subscriber count)
+//
+// The padding below is not decoration: it is what places each member at the offset the
+// decompiled body actually reaches. static_asserts in the implementation pin them, so a
+// layout mistake fails the build rather than corrupting memory silently.
+#pragma once
+
+#include "sead/list_node.hpp"
+
+#include <cstddef>
+#include <cstdint>
+
+namespace sead {
+
+// The refcount the decompiled body adjusts. NOTE: `lVar2 = *(long *)(slot + 0x38)` and
+// then `*(int *)(lVar2 + 0x10) += -1` � so the pointer in the connection field is the
+// object holding the refcount at +0x10. registerCallback stores the EVENT there
+// (`*(param_1 + 0x38) = PTR_sAssertEvent + 8`), so the refcount is reached through the
+// event pointer. Modelled as a mixin the event carries.
+class RefCounted {
+public:
+    int refCount() const { return mRefCount; }
+    void addRef() { ++mRefCount; }
+    void release() { --mRefCount; }
+
+    unsigned char mPad0[0x10] = {}; // places mRefCount at +0x10
+    int mRefCount = 0;
+};
+
+// A subscriber slot, laid out at the offsets the decompiled body uses.
+class DelegateEventSlot {
+public:
+    DelegateEventSlot() = default;
+
+    bool isConnected() const { return mConnected != 0; }
+    ListNode *link() { return &mLink; }
+    void *connection() const { return mConnection; }
+    void setConnection(void *c) { mConnection = c; }
+    void setConnected(bool v) { mConnected = v ? 1 : 0; }
+
+    // Disconnect from whatever connection this slot holds, mirroring the binary's inline
+    // sequence exactly. NOTE the two guards: the first is inside the `isConnected` test,
+    // the second is unconditional. They are NOT collapsed, because collapsing them
+    // changes behaviour for a slot whose flag is clear but whose connection is non-null.
+    void disconnect() {
+        if (mConnected != 0) {
+            if (mConnection != nullptr) {
+                void *c = mConnection;
+                mConnection = nullptr;
+                mLink.erase_();
+                static_cast<RefCounted *>(c)->release();
+            }
+            mConnected = 0;
+        }
+        if (mConnection != nullptr) {
+            void *c = mConnection;
+            mConnection = nullptr;
+            mLink.erase_();
+            static_cast<RefCounted *>(c)->release();
+        }
+    }
+
+    // Offsets: link at +0x20, connection at +0x38, connected at +0x68.
+    unsigned char mPad0[0x20] = {};
+    ListNode mLink;                                   // +0x20
+    void *mConnection = nullptr;
+    unsigned char mPad2[0x30] = {};
+    unsigned char mConnected = 0;
+};
+
+// The event a slot subscribes to. sAssertEvent is the concrete instance the binary uses;
+// its address is PTR_sAssertEvent_7102fd79a0.
+class DelegateEvent : public RefCounted {
+public:
+    void addSubscriber(DelegateEventSlot *slot) {
+        if (slot == nullptr) return;
+        mList.pushBack(slot->link());
+        ++mCount;
+    }
+
+    int count() const { return mCount; }
+
+    // Offsets: list head at +0x08, count at +0x18.
+    unsigned char mPad0[0x08] = {};
+    List mList;
+    unsigned char mPad1[0x0c] = {};
+};
+
+// sead::AssertConfig — only the one function the boot root calls.
+class AssertConfig {
+public:
+    // 0x7101397fac, 160 bytes. Registers `slot` with the global assert event.
+    static void registerCallback(DelegateEventSlot &slot);
+
+    // The global the binary links slots into (PTR_sAssertEvent_7102fd79a0).
+    static DelegateEvent &assertEvent();
+};
+
+} // namespace sead
