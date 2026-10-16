@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[HEAP_INTERFACE.md](HEAP_INTERFACE.md)** - the sead::Heap vtable (27 virtual functions), which is the interface a host-backed heap must provide.
 - **[HEAP_LAYER_SCOPE.md](HEAP_LAYER_SCOPE.md)** - whether the heap layer is a wall, and the interface-over-host-allocator route around it.
 - **[GAMEFRAMEWORK_SCOPE.md](GAMEFRAMEWORK_SCOPE.md)** - whether the next engine step is a wall or a tree, with the subtree mapped.
 - **[ENGINE_RECONSTRUCTION.md](ENGINE_RECONSTRUCTION.md)** - the engine-layer target: the boot root's 13 direct dependencies, with addresses, and the fail-loudly method.

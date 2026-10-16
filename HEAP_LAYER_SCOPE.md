@@ -105,8 +105,7 @@ observed on the boot path does. If a later stage does, that is the point at whic
 - **The two-namespace finding needs reverifying before porting.** This document infers that
   `sead::` is the boot-path hierarchy from the decompiled call sites; the `pead::` set was
   what an inventory grep surfaced. The `sead::` addresses were not enumerated here.
-- **`Heap`'s vtable offsets are taken from the decompile** (`+0x80` free size, `+0x28`
-  destroy) rather than from a full vtable dump, so the interface surface is only partly
+- **`Heap`'s vtable offsets are taken from the decompile** (`+0x80`, `+0x28`) rather than from a full vtable dump, so the interface surface is only partly
   known. Enumerating it is the first task of step 1 above.
 - **`MemBlock` has zero matches** in this inventory scan, so the block type `ExpHeap`
   manipulates was not located.
