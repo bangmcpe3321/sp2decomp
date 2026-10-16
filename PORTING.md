@@ -120,7 +120,114 @@ assumed; these are namespace labels.
 
 ---
 
-## 3. Dependency order
+## 3. Offline-only scope
+
+**This project targets offline play.** That decision removes the single largest
+unportable component and is reflected throughout this document.
+
+Measured against the 113,150 functions in `main`:
+
+| Bucket | Functions | Share |
+|---|---:|---:|
+| **Online-only — stub, replace, or drop** | **15,485** | **13.7%** |
+| Platform APIs — reimplement on PC | 4,070 | 3.6% |
+| Engine / middleware (`sead`, `agl`, `xlink2`) | 8,629 | 7.6% |
+| Framework / UI (`Lp`, `Cui`, `eui`, `aal`, `gsys`, `Cmn`) | 21,701 | 19.2% |
+| Offline gameplay | 6,454 | 5.7% |
+| Unattributed by symbol prefix | 56,811 | 50.2% |
+
+The 13.7% matches the earlier `nex` + `pia` estimate and is now bounded by the
+full online surface.
+
+> **Caveat.** The 50.2% "unattributed" bucket is a limitation of symbol-prefix
+> attribution, **not** a measure of unknown code. Many entries are local symbols,
+> operators and thunks whose namespace the prefix rule cannot recover. It must be
+> resolved before this scoping can be treated as precise.
+
+### What gets cut
+
+| Surface | Functions |
+|---|---:|
+| `nn::nex` — online service | 6,815 |
+| `nn::pia` — P2P session layer | 4,687 |
+| `Lp::Net` — game network layer | 812 |
+| `Lobby` — online lobby | 792 |
+| `Cnet` — network transport | 590 |
+| `Match` — matchmaking | 555 |
+| `Shop` — online shop | 509 |
+| `Game::PageHandlerVersus` — versus match UI | 113 |
+| `Game::PageHandlerCoop` — Salmon Run match UI | 81 |
+| `Game::PlayerNetControl` — network sync | 78 |
+| `Game::SeqMgr*Versus/Coop` — online match sequences | 74 |
+| `Game::MissilePositionOnline` | 68 |
+| `nn::socket` | 62 |
+| `nn::ldn` — local wireless | 50 |
+| `nn::web`, `nn::account`, `nn::friends` | 128 |
+
+### Key architectural advantage: dummy implementations already exist
+
+The binary already ships **offline simulation paths for networked systems**:
+
+```
+DummyMatch            18
+DummyLocalMatch       17
+LobbyForShow          18
+LobbyForShow / Show    —   offline lobby presentation
+Boot                  19
+```
+
+`DummyMatch` and `DummyLocalMatch` strongly suggest the game already has a
+local/offline match harness alongside the networked one, and `LobbyForShow`
+implies lobby UI that renders without a live service. **These are the seam to
+build on** — an offline port may be able to drive the dummy path directly rather
+than inventing a replacement. Confirming this is the highest-value early research
+task for the offline goal.
+
+### What must keep working
+
+| Surface | Functions | Contents |
+|---|---:|---|
+| `Game::SeqMgrMission` | 104 | single-player mission sequence (Octo Canyon) |
+| `Game::PageHandlerMission` | 84 | mission UI |
+| `Game::SeqMgrWorld` | 146 | world/hub sequence |
+| `Game::PageHandlerPlaza` | 86 | hub plaza UI |
+| `Game::Player` + `PlayerInkAction` + `PlayerEffect` | 838 | the player and ink mechanics |
+| `Game::BulletMgr` | 115 | projectiles |
+| `Game::Enemy*` | 40+ classes | enemy AI (single-player and Salmon Run) |
+| `Game::Utl` | 426 | gameplay utilities |
+| `MiniGame` | 184 | local minigames |
+| `Game::DbgSetting` | 120 | options/debug |
+
+### Content implications
+
+- **Single-player (Octo Canyon) is fully offline** — no redesign needed.
+- **Salmon Run and Turf War / Ranked are server-gated in the retail game.** With
+  the online layer removed they must be driven either through the `Dummy*` paths
+  or through bots and local play. Local Salmon Run is plausible; large-scale Turf
+  War is a design problem, not a porting problem.
+- Amiibo (`nn::nfp`, 40) has no PC equivalent and needs a data-file substitute.
+- `nn::bcat` (36) delivered content in the background; with no service, formerly
+  delivered content must be shipped or omitted.
+
+### Revised sequencing for offline
+
+Phase 5 (online) from the original plan is **deleted**. The order becomes:
+
+1. **Phase 0 — Harness.** Extraction and analysis pipeline.
+2. **Phase 1 — Platform layer.** `nn::gfx`/`g3d` → Vulkan, `hid` → SDL,
+   `audio` → miniaudio, `fs` → std::filesystem, `font` → FreeType.
+3. **Phase 2 — Engine.** `sead`, then `agl`, then `xlink2`.
+4. **Phase 3 — Framework.** `Lp::Sys`, `Lp::Utl`, `Lp::UI`, `gsys`, `Cmn`.
+5. **Phase 4 — Offline gameplay.** `Game::Player` + `PlayerInkAction` +
+   `BulletMgr`, then single-player via `SeqMgrMission` / `PageHandlerMission`.
+6. **Phase 5 — Local multiplayer.** Drive `DummyMatch` / `DummyLocalMatch`.
+
+Removing online also removes the need for a new backend service, which was
+previously the largest single unknown in the project.
+
+---
+
+## 4. Dependency order
 
 A port cannot be built in the order the subsystems appear above. It must be built
 bottom-up, because nothing above can run until the layer below produces frames,
@@ -181,7 +288,7 @@ Redesign against a new backend:
 
 ---
 
-## 4. Realistic sequencing
+## 5. Realistic sequencing
 
 1. **Do not start with `main`.** Start with `subsdk1` (66 KB) or `rtld` (13 KB).
    The objective is to prove the pipeline end-to-end on something finishable.
@@ -190,7 +297,7 @@ Redesign against a new backend:
 3. **Then offline `main`**, with online stubbed.
 4. **Then online**, on a new backend.
 
-## 5. Legal and distribution
+## 6. Legal and distribution
 
 Practical constraints that shape architecture:
 
@@ -202,15 +309,22 @@ Practical constraints that shape architecture:
 - This repository contains no assets, code, or keys, and should stay that way —
   see [`.gitignore`](.gitignore).
 
-## 6. Bottom line
+## 7. Bottom line
 
 **Scale.** For calibration: the Super Mario 64 decompilation — roughly 10 MB of
 MIPS, about 300k lines of C — took a distributed team *years* before its PC port
-was possible. Splatoon 2 is **23 MB of AArch64 with 113,150 functions**, plus a
-full online stack that cannot be ported at all.
+was possible. Splatoon 2 is **23 MB of AArch64 with 113,150 functions**. The
+offline-only decision removes the 13.7% that could not be ported at all, but it
+does not change the scale of the remainder: this is still a multi-year,
+multi-person undertaking. Any plan that claims otherwise is wrong.
 
-This is a multi-year, multi-person undertaking. Any plan that claims otherwise is
-wrong.
+**What the offline decision bought:**
+
+- Roughly 15,485 functions removed from scope, including the entire unportable
+  online stack.
+- **No new backend service to build** — previously the largest single unknown.
+- A plausible existing seam: `DummyMatch` / `DummyLocalMatch` / `LobbyForShow`
+  suggest offline simulation paths are already present in the binary.
 
 **What is genuinely favourable here:**
 
@@ -218,12 +332,21 @@ wrong.
   gameplay systems named in the clear (`PlayerInkAction::shotBullet_B`).
 - The engine stack is understood and has public prior art (`sead`).
 - The platform mappings are well-trodden; nothing requires new research.
+- Single-player Octo Canyon is already offline and needs no redesign.
 
 **What is genuinely unfavourable:**
 
-- 10% of the code is an unportable online stack.
 - `agl` + `nn::gfx` rendering reimplementation is very large.
+- 50.2% of functions are unattributed by symbol prefix and need proper
+  classification before scope is final.
+- Retail Salmon Run and Turf War are server-gated; driving them offline is a
+  design problem, not a translation problem.
 - No prior decompilation of this title exists to build on.
 
-**Highest-value next step:** prove the whole pipeline on `subsdk1`, then `sdk`.
-Finishing a small module teaches more than starting a large one.
+**Highest-value next steps, in order:**
+
+1. Confirm the `DummyMatch` / `DummyLocalMatch` path can drive a match without a
+   live service — this decides whether offline multiplayer is cheap or expensive.
+2. Resolve the 50.2% unattributed bucket so the scope numbers become trustworthy.
+3. Prove the whole pipeline on `subsdk1`, then `sdk`. Finishing a small module
+   teaches more than starting a large one.

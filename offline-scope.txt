@@ -1,0 +1,91 @@
+Offline-only port scope for Splatoon 2 main
+total functions: 113150
+
+=== bucket totals ===
+  online           15485
+  offline           6454
+  platformKeep      4070
+  engine            8629
+  ui               21701
+  unknown          56811
+  TOTAL           113150
+
+=== ONLINE-only surface to stub, replace or drop ===
+    6815  Nintendo online service (matchmaking, rankings, protocols)
+    4687  P2P session layer (Nintendo infrastructure)
+     812  game network layer
+     792  online lobby
+     590  network transport
+     555  matchmaking
+     509  online shop
+     113  versus match UI (online)
+      81  Salmon Run match UI (online)
+      78  networked player synchronisation
+      74  online match sequence
+      68  online missile position sync
+      62  BSD socket layer
+      50  local wireless networking
+      44  web view (online content)
+      44  Nintendo Account
+      40  friend list service
+      36  background content delivery
+      14  network interface manager
+       8  TLS
+       7  league web debug view
+       6  league server debug input
+
+=== OFFLINE surface that must keep working ===
+    4558  enemy AI (single-player + Salmon Run)
+     542  player
+     426  gameplay utilities
+     209  ink mechanics
+     184  local minigames
+     146  world/hub sequence (offline)
+     115  projectiles
+     104  single-player mission (Octo Canyon) sequence
+      86  hub plaza UI (offline)
+      84  single-player mission UI
+
+=== removable (online) share of codebase: 13.7% ===
+
+=== online symbol namespaces (top 40 by count) ===
+    6815  nn::nex
+    4687  nn::pia
+     812  Lp::Net
+     115  Shop::SeqMgr
+     113  Game::PageHandlerVersus
+      89  Cnet::MatchmakeExeBase
+      81  Game::PageHandlerCoop
+      78  Game::PlayerNetControl
+      73  Shop::MainPage
+      68  Game::MissilePositionOnline
+      62  nn::socket
+      50  nn::ldn
+      47  Match::UIVersusPageHandler
+      45  Shop::NpcBase
+      44  Lobby::UIVersusModeSelectPage
+      44  nn::web
+      44  nn::account
+      40  Shop::PlayerDressup
+      40  nn::friends
+      39  Lobby::SeqMgrBase
+      38  Game::SeqMgrCoop
+      37  Match::SeqBase
+      37  Shop::PageHandler
+      36  Cnet::LeagueInfoSharingExe
+      36  Game::SeqMgrVersus
+      36  nn::bcat
+      33  Lobby::SeqFriend
+      32  Cnet::NexExtraServiceMgr
+      32  Lobby::UIVersusLeagueResultWindowPage
+      31  Lobby::SeqMgrVersus
+      30  Cnet::PacketVersusResultUploadInfo
+      29  Lobby::UICoopModeSelectPage
+      28  Cnet::PlayerInfoSharingExe
+      28  Cnet::NexDataStoreMgr
+      28  Match::UICoopLocalMainPage
+      28  Match::UIVersusPrivateMainPage
+      27  Lobby::SeqMgrCoop
+      27  Lobby::SeqVersusLeagueResult
+      27  Match::VersusPrivateSeq
+      26  Lobby::SeqMgrLocal
