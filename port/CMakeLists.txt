@@ -14,6 +14,8 @@ add_library(nnos STATIC
   src/util.cpp
   src/services.cpp
   src/init.cpp
+  src/date_time.cpp
+  src/utl.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -41,4 +43,9 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(boot_integration tests/boot_integration.cpp)
   target_link_libraries(boot_integration PRIVATE nnos)
   add_test(NAME boot_sequence COMMAND boot_integration)
+
+  # The first RECONSTRUCTED ENGINE functions (ports of decompiled bodies).
+  add_executable(engine_tests tests/engine_tests.cpp)
+  target_link_libraries(engine_tests PRIVATE nnos)
+  add_test(NAME engine_contract COMMAND engine_tests)
 endif()

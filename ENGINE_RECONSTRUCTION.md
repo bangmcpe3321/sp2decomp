@@ -32,12 +32,19 @@ decompiled body, so work can start immediately:
 **13 functions, not 113,000.** That is the tractable first milestone, and it is where the
 engine must be stood up first because the boot root cannot proceed without them.
 
-> **Caveat found while building this list:** rows 5 and 7 share the address
-> `0x7100eb9f1c`. That is the trailing-name matcher in
-> `tools/static/boot-dep-coverage.mjs` collapsing two different functions onto one
-> `initialize`. **The address for `sead::ForegroundBucketMgr::initialize` is not
-> established** and needs resolving before row 7 is ported. Recorded rather than silently
-> propagated.
+> **Collision resolved.** Rows 5 and 7 originally shared the address `0x7100eb9f1c`
+> because `tools/static/boot-dep-coverage.mjs` matched on the trailing name `initialize`,
+> which several functions carry once Ghidra strips namespaces. The boot closure inventory
+> carries full-namespace names with addresses, so it is now the authoritative source and
+> name-matching is only a fallback that **reports ambiguity instead of picking one**.
+> Corrected:
+>
+> | Function | Address | Size |
+> |---|---|---:|
+> | `sead::GameFrameworkNx::initialize` | `0x7100e6724c` | 20 B |
+> | `sead::ForegroundBucketMgr::initialize` | `0x710139fb3c` | 4 B |
+>
+> All 13 dependencies now resolve unambiguously.
 
 ## 2. The four `Lp::Utl` diagnostics ports are the natural first increment
 

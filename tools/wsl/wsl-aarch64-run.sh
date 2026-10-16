@@ -46,7 +46,7 @@ echo "   build exit=${PIPESTATUS[0]}"
 
 echo
 echo "=== confirm the binaries really are AArch64 ==="
-for t in platform_tests services_tests boot_integration; do
+for t in platform_tests services_tests boot_integration engine_tests; do
   if [ -x "$BUILD/$t" ]; then
     printf "  %-18s %s\n" "$t" "$(file -b "$BUILD/$t" | cut -c1-70)"
   fi
@@ -55,7 +55,7 @@ done
 echo
 echo "=== run under qemu-aarch64 ==="
 rc=0
-for t in platform_tests services_tests boot_integration; do
+for t in platform_tests services_tests boot_integration engine_tests; do
   echo "--- $t ---"
   if [ -x "$BUILD/$t" ]; then
     QEMU_LD_PREFIX=/usr/aarch64-linux-gnu qemu-aarch64 "$BUILD/$t" 2>&1 | tail -6
