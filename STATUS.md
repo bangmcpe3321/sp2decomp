@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[DEVICE_INIT_CALLER_SEARCH.md](DEVICE_INIT_CALLER_SEARCH.md)** - the search for DeviceImpl::Initialize's caller, which FAILED, and why scanning beats reading no further.
 - **[DEVICE_IMPL_INITIALIZE.md](DEVICE_IMPL_INITIALIZE.md)** - where the NVN device is actually created, and a correction to NVN_BOOT_SUBSET's lower bound.
 - **[NNGFX_LAYER.md](NNGFX_LAYER.md)** - what nn::gfx is, its two verified entry points, and a measurement that FAILED (recorded so it is not repeated).
 - **[NVN_BOOT_SUBSET.md](NVN_BOOT_SUBSET.md)** - the boot path reaches 30 of NVN's 453 functions (6.6%); every rendering function is untouched.
