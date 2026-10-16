@@ -23,6 +23,8 @@ add_library(nnos STATIC
   src/heap_mgr.cpp
   src/thread_mgr.cpp
   src/framework.cpp
+  src/game_framework.cpp
+  src/game_framework_nx.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -97,5 +99,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(framework_tests tests/framework_tests.cpp)
   target_link_libraries(framework_tests PRIVATE nnos)
   add_test(NAME framework_contract COMMAND framework_tests)
+
+  # sead::GameFramework / GameFrameworkNx::initialize -- boot step 5.
+  add_executable(game_framework_tests tests/game_framework_tests.cpp)
+  target_link_libraries(game_framework_tests PRIVATE nnos)
+  add_test(NAME game_framework_contract COMMAND game_framework_tests)
 
 endif()

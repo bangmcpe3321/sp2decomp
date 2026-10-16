@@ -10,6 +10,7 @@
 #include "lp/utl.hpp"
 #include "sead/delegate_event.hpp"
 #include "sead/framework_args.hpp"
+#include "sead/game_framework_nx.hpp"
 #include "sead/heap_mgr.hpp"
 #include "nn/os.hpp"
 
@@ -112,7 +113,12 @@ void SequenceBody(Runner &r) {
     });
 
     // --- step 5: sead::GameFrameworkNx::initialize ---------------------------------
-    r.missing("sead::GameFrameworkNx::initialize", kGameFrameworkInitialize);
+    // Ported (game_framework_nx.cpp + game_framework.cpp), and it reaches the heap layer
+    // (heap.cpp / heap_mgr.cpp) -- so the runner now executes real heap construction.
+    r.step("sead::GameFrameworkNx::initialize", [] {
+        sead::Framework::InitializeArg arg;
+        sead::GameFrameworkNx::initialize(arg);
+    });
 
     // --- step 6: dumpMemoryInfo("Application Start") -------------------------------
     // NOTE ORDERING: this is ported, but it sits AFTER two unported dependencies in the

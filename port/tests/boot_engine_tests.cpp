@@ -50,12 +50,17 @@ int main() {
     // the new boundary to be stated explicitly rather than drifting.
     //
     // History: stop moved registerCallback (round 3) -> InitializeArg (round 6)
-    //          -> GameFrameworkNx::initialize (round 7, after InitializeArg was ported).
-    Check(result.stoppedAt.find("GameFrameworkNx") != std::string::npos,
+    //          -> GameFrameworkNx::initialize (round 7) -> ForegroundBucketMgr (this round).
+    //
+    // Seven steps now complete, not six: advancing past GameFrameworkNx::initialize also
+    // brought Lp::Utl::dumpMemoryInfo into reach, and it had been ported but unreachable
+    // behind the gap since the sequence was written. That is fail-loudly doing its job --
+    // the reachable set grows as dependencies land rather than being hard-coded.
+    Check(result.stoppedAt.find("ForegroundBucketMgr") != std::string::npos,
           "it stopped at the FIRST unported dependency in boot order "
-          "(sead::GameFrameworkNx::initialize)");
-    Check(result.completed.size() == 5,
-          "exactly the five ported boot-root steps ran before the gap");
+          "(sead::ForegroundBucketMgr::initialize)");
+    Check(result.completed.size() == 7,
+          "exactly the seven reachable ported steps ran before the gap");
 
     // Every completed step must be a real reconstructed function, not a placeholder.
     for (const auto &step : result.completed) {

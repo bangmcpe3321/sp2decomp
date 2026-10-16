@@ -78,7 +78,7 @@ bool ExpHeap::init(std::size_t size, const char *name, void *buffer) {
 }
 
 void *ExpHeap::tryAlloc(std::size_t size, int alignment) {
-    if (mDestroyed || size == 0) return nullptr;
+    if (size == 0) return nullptr;
     if (mAllocCount >= kMaxTracked) return nullptr; // refuse rather than silently drop the record
     const std::size_t align = NormaliseAlign(alignment > 0 ? static_cast<std::size_t>(alignment) : 8);
     void *p = nullptr;
@@ -97,7 +97,7 @@ void *ExpHeap::tryAlloc(std::size_t size, int alignment) {
 }
 
 void ExpHeap::free(void *ptr) {
-    if (mDestroyed || ptr == nullptr) return;
+    if (ptr == nullptr) return;
     for (int i = 0; i < mAllocCount; ++i) {
         if (mAllocs[i].ptr == ptr) {
             mAllocated -= mAllocs[i].size;
@@ -116,7 +116,6 @@ void ExpHeap::free(void *ptr) {
 }
 
 void ExpHeap::freeAll() {
-    if (mDestroyed) return;
     for (int i = 0; i < mAllocCount; ++i) {
 #if defined(_WIN32)
         _aligned_free(mAllocs[i].ptr);
@@ -156,13 +155,20 @@ bool ExpHeap::isInclude(const void *ptr) const {
 bool ExpHeap::isEmpty() const { return mAllocCount == 0; }
 
 void ExpHeap::destroy() {
+    // Free every outstanding allocation and mark the heap empty -- but leave the OBJECT USABLE.
+    //
+    // This matters and was caught by a segfault: Framework::initialize calls `th->destroy(th)`
+    // on the ThreadMgr heap and the boot path then keeps using heap objects (GameFramework::
+    // initialize queries the ROOT heap's getMaxAllocatableSize right afterwards). In the
+    // binary those heaps are arena-resident and survive destroy(); an earlier version of this
+    // set a destroyed flag that made subsequent queries read torn-down state, which crashed.
     if (mDestroyed) return;
     freeAll();
-    mDestroyed = true;
     if (mOwnsBuffer && mBuffer != nullptr) {
         std::free(mBuffer);
         mBuffer = nullptr;
     }
+    mDestroyed = true; // records that destroy ran; queries remain valid
 }
 
 int ExpHeap::liveAllocationCount() const { return mAllocCount; }
