@@ -1,0 +1,93 @@
+Virtual-dispatch surface (indirect call targets)
+source: main.elf
+
+=== .rela.dyn relocation census ===
+  total relocations : 255043
+    251653  R_AARCH64_RELATIVE
+      3362  R_AARCH64_ABS64
+        28  R_AARCH64_GLOB_DAT
+
+  R_AARCH64_RELATIVE pointing into .text: 218729
+  distinct function targets: 60025
+
+=== indirect targets by namespace (top 40) ===
+   2721  nn::nex
+   2400  Lp::Sys
+   2209  nn::pia
+   2075  <no symbol>
+   1723  Game::Coop
+   1688  Lp::UI
+   1166  Lp::Utl
+    708  Game::Cmp
+    561  Lp::Net
+    375  sead::FixedSafeString
+    368  sead::FixedSafeStringBase
+    310  Game::Utl
+    255  nn::atk
+    248  agl::utl
+    225  sead::Delegate1
+    170  nn::ui2d
+    117  agl::env
+    117  agl::lght
+    116  Game::SeqPlazaVender
+    105  Game::EnemyLastKing
+     99  Game::EnemyBakeryKing
+     97  Game::EnemyRollerKing
+     96  Game::EnemyStampKingDeco
+     94  Game::SeqMgrWorld
+     91  Shop::SeqMgr
+     89  Game::SeqPlazaAmiibo
+     84  Game::EnemyStampKing2
+     83  Game::EnemyHangedKing
+     74  Game::EnemyRollerKingTest
+     71  Game::EnemyGelidiumKing_Mark4
+     69  sead::StrTreeMap
+     67  sead::AnyDelegate1
+     64  Game::HangedKingStrategy
+     63  Cmn::Actor
+     63  nn::vfx
+     62  agl::fx
+     61  Cnet::MatchmakeExeBase
+     60  gsys::ModelUnit
+     60  nn::font
+     59  Game::EnemyGelidiumKing
+
+=== largest indirect-target clusters (top 30 by slot count) ===
+  0x710121af64  x1105  _ZNK2Lp3Sys9ParamNode4metaEPN4sead22BufferedSafeStringBaseIcEE
+  0x710001715c  x1103  Lp::Sys::ParamNode::onApply
+  0x710121af4c  x1096  _ZNK2Lp3Sys9ParamNode5labelEPN4sead22BufferedSafeStringBaseIcEE
+  0x7100017160  x1006  Lp::Sys::ParamNode::applyAglParam
+  0x7100017158  x1005  Lp::Sys::Params::lerp
+  0x710121a8e0  x1005  Lp::Sys::Params::readStream
+  0x710121a958  x1005  _ZNK2Lp3Sys6Params11writeStreamERN4sead11WriteStreamE
+  0x710121ac94  x1005  _ZNK2Lp3Sys6Params12copyAglParamEv
+  0x710121acf8  x1005  _ZNK2Lp3Sys6Params12formatPrint_EPKcPN4sead11PrintOutputE
+  0x7100017164  x1005  Lp::Sys::Params::addToParent
+  0x7100017168  x1005  Lp::Sys::Params::removeFromParent
+  0x710121a0b4  x1005  Lp::Sys::Params::makePathName
+  0x710121a474  x1005  Lp::Sys::Params::convertTool_
+  0x710121a478  x1005  Lp::Sys::Params::commit_
+  0x710121a9a8  x1005  _ZNK2Lp3Sys6Params13writeAglParamERKN4sead14SafeStringBaseIcEES6_
+  0x710121abdc  x1005  Lp::Sys::Params::readAglParam
+  0x710121a358  x1004  Lp::Sys::Params::save
+  0x710121a360  x1004  Lp::Sys::Params::load
+  0x7100017110  x998  _ZNK2Lp3Sys9ParamNode3keyEPN4sead22BufferedSafeStringBaseIcEE
+  0x7100017150  x891  _ZNK2Lp3Sys6Params7isEqualERKNS0_9ParamNodeE
+  0x710121a7f0  x883  _ZNK2Lp3Sys6Params10writeByamlERNS_3Utl11ByamlWriterE
+  0x710121a8dc  x883  _ZNK2Lp3Sys6Params9writeYamlERNS_3Utl10YamlWriterE
+  0x710121a6c8  x882  Lp::Sys::Params::readByaml
+  0x7100017154  x851  Lp::Sys::Params::copy
+  0x7100001770  x636  _ZNK6xlink25IUser18getUserInformationEv
+  0x710000178c  x636  _ZNK6xlink25IUser24getMtxCorrectingDrawBoneEv
+  0x7101241e94  x633  _ZNK2Lp3Sys10XLinkIUser18getBoneWorldMtxPtrEPKc
+  0x7101242114  x633  _ZNK2Lp3Sys10XLinkIUser17getActionSlotNameEi
+  0x7100001758  x633  _ZNK2Lp3Sys10XLinkIUser18getDebugDrawCameraEv
+  0x7100001760  x633  _ZNK2Lp3Sys10XLinkIUser22getDebugDrawProjectionEv
+
+=== interpretation ===
+  distinct indirect-callable functions: 60025
+  these are vtable slots / function-pointer table entries.
+  the BL-based closure (232) cannot see any of them, so the true
+  reachable set is at least 232 + (indirect targets also on the boot
+  path). Identifying which of these  are boot-reachable requires
+  vtable type recovery, which this analysis does not attempt.

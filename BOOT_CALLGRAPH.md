@@ -311,3 +311,58 @@ delegates, task graphs and virtual interfaces, so the true closure is larger tha
 functions. Quantifying that requires pointer/type analysis (identifying vtables
 and devirtualising call sites), which is a separate project from static call
 decoding and is not attempted here.
+
+---
+
+## Quantifying the indirect-call surface
+
+That project was started anyway, because "the real closure is larger" is not a
+useful statement without a number.
+
+Method: AArch64 ELF dynamic relocations of type `R_AARCH64_RELATIVE` store a
+pointer at a slot. When that pointer targets code, the slot is a vtable entry,
+a function-pointer table entry, or a literal-pool reference — in all three cases
+the target is **address-taken** and therefore reachable without any `BL`.
+
+Census of `.rela.dyn` (255,043 entries):
+
+| Relocation | Count |
+|---|---:|
+| `R_AARCH64_RELATIVE` | 251,653 |
+| `R_AARCH64_ABS64` | 3,362 |
+| `R_AARCH64_GLOB_DAT` | 28 |
+| **`R_AARCH64_RELATIVE` pointing into `.text`** | **218,729** |
+| **distinct function targets** | **60,025** |
+
+**60,025 distinct functions are address-taken.** That is 53% of the 113,150
+functions in the binary. The most-referenced indirect targets cluster in exactly
+the subsystems expected of a virtual-heavy C++ engine:
+
+| Namespace | Indirect targets |
+|---|---:|
+| `nn::nex` | 2,721 |
+| `Lp::Sys` | 2,400 |
+| `nn::pia` | 2,209 |
+| `Game::Coop` | 1,723 |
+| `<no symbol>` | 2,075 |
+
+### What this actually means
+
+**The BL closure (232) is a floor, not an estimate of total work.** More than half
+the binary is address-taken, so a large fraction of it is invisible to static call
+decoding. Reading 232 as "the port is 232 functions" would be badly wrong.
+
+Two honest qualifications, so the 60,025 is not over-read either:
+
+1. **Not all address-taken code is a genuine virtual call.** A pointer in a table
+   is not proof of dispatch; it may be a callback, a registration, or a literal
+   pool constant. 60,025 is an upper bound on *indirect* targets, not a count of
+   virtual methods.
+2. **Not all of it is boot-reachable.** Most of those 60,025 belong to gameplay
+   and online subsystems that boot never touches. The boot-reachable subset is
+   unknown without vtable type recovery.
+
+**So the honest bracket for the true boot closure is: ≥232 (proven direct-call
+floor) and well under 60,025 (all address-taken code).** Narrowing it needs vtable
+identification and devirtualisation of the boot call sites — the natural next
+analytical step, and the last major unknown in scoping this milestone.
