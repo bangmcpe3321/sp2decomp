@@ -17,26 +17,34 @@ namespace nn::os {
 
 // ---- fixed ABI types -----------------------------------------------------
 // These are the SDK's own opaque handles. The game allocates storage for them inside
-// its own objects (e.g. `nn::os::InitializeMutex(pMVar9, false, 0)` writes into a
-// caller-owned field), so what matters for correctness is that the host backing store
-// fits — a `static_assert` in the implementation enforces that.
+// its own objects and passes the address, e.g. `nn::os::LockMutex((MutexType *)(this +
+// 0x348))`.
 //
-// NOTE ON SIZES: the true `sizeof(MutexType)` in the shipped SDK is not established by
-// this session's evidence. The sizes below are chosen large enough to hold the host
-// primitives, which is the requirement for the port; they are NOT a claim about the
-// original ABI. Establishing the real sizes from the binary would need the field-offset
-// analysis used for `sead::GameFrameworkNx` in docs/VTABLE_VERIFICATION.md.
+// SIZES ARE EVIDENCE-BASED. See docs/TYPE_SIZES.md for the method and the caveats; the
+// short version is that the game always allocates these as SINGLE FIELDS, never as
+// array elements, so the host backing store only has to fit the host primitive — the
+// SDK never computes sizeof() for them. Where a size is measurable from the binary it is
+// recorded below; where it is not, that is stated rather than guessed.
 struct MutexType {
-    // Backed by a host mutex in the PC stand-in. 64 bytes holds a recursive_mutex with
-    // headroom on x86-64 Linux and Windows.
+    // NOT MEASURED. Two `.bss` globals initialised 0x20 apart suggest sizeof <= 0x20,
+    // but they are distinct symbols rather than proven array elements, so 0x20 is a
+    // candidate rather than a measurement. The host needs 48 bytes for a
+    // std::recursive_mutex, which exceeds that candidate; that is safe here because no
+    // observed site walks an array of these, but it is NOT ABI-compatible.
     alignas(16) unsigned char storage[0x40];
 };
 
 struct SemaphoreType {
+    // UNBOUNDED by the evidence: four call sites consistently use `this + 0x20`, which
+    // confirms a stable field offset but reveals no following sibling field.
     alignas(16) unsigned char storage[0x40];
 };
 
 struct ThreadType {
+    // UNOBSERVABLE. Created by the SDK via CreateThread and held BY POINTER at three of
+    // four observed sites, so the game never exercises its size inline. The game also
+    // never reads fields inside it in the observed code, so any adequate host reserve
+    // works.
     alignas(16) unsigned char storage[0x80];
 };
 
@@ -50,10 +58,12 @@ struct MemoryInfo {
     std::uint64_t usedSize;
 };
 
-// Message queue storage the game allocates inline:
-// `InitializeMessageQueue((MessageQueueType *)(this + 0x1f8), (ulong *)(this + 0x240), 0x20)`
+// Message queue storage. MEASURED: four call sites pass the queue and its backing
+// buffer as sibling fields of the same object, always exactly 0x48 apart, so the
+// queue's region is 0x48 — the only size in this header established by measurement.
+// The count is a runtime capacity (0x20 and 0x21 both appear), not part of the type.
 struct MessageQueueType {
-    alignas(16) unsigned char storage[0x40];
+    alignas(16) unsigned char storage[0x48];
 };
 
 // Thread-local-destructor callback passed to AllocateTlsSlot.

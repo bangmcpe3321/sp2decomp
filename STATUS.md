@@ -87,6 +87,7 @@ These are the documents a port is actually written against:
 
 ### 5. The port
 
+- **[TYPE_SIZES.md](TYPE_SIZES.md)** — what is actually measured about the SDK's opaque types, and what is not.
 - **[port/](port/)** - the actual platform layer: CMake project, 
 n::os header and
   implementation, and contract tests. Build and test with 	ools/wsl/wsl-build-port.sh.
