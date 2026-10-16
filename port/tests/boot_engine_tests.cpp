@@ -56,11 +56,11 @@ int main() {
     // brought Lp::Utl::dumpMemoryInfo into reach, and it had been ported but unreachable
     // behind the gap since the sequence was written. That is fail-loudly doing its job --
     // the reachable set grows as dependencies land rather than being hard-coded.
-    Check(result.stoppedAt.find("Framework::Framework") != std::string::npos,
+    Check(result.stoppedAt.find("initializeGraphicsSystem") != std::string::npos,
           "it stopped at the FIRST unported dependency in boot order "
-          "(sead::Framework::Framework)");
-    Check(result.completed.size() == 10,
-          "exactly the ten reachable ported steps ran before the gap");
+          "(sead::GameFrameworkNx::initializeGraphicsSystem)");
+    Check(result.completed.size() == 11,
+          "exactly the eleven reachable ported steps ran before the gap");
 
     // Every completed step must be a real reconstructed function, not a placeholder.
     for (const auto &step : result.completed) {

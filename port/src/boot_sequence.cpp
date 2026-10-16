@@ -147,7 +147,11 @@ void SequenceBody(Runner &r) {
             hg->createHeap(sead::HeapMgr::getRootHeap(0), sizes, names, "cOthers");
         }
     });
-    r.missing("Framework::Framework", kFrameworkCtor);
+    // Ported: 0x7100e696a4, 60 bytes -- the boot root constructs one of these.
+    r.step("sead::Framework::Framework", [] {
+        static sead::Framework sFramework;
+        (void)sFramework;
+    });
     r.missing("sead::GameFrameworkNx::initializeGraphicsSystem", kInitializeGraphicsSystem);
     r.missing("sead::TaskBase::MgrTaskArg::MgrTaskArg", kMgrTaskArgCtor);
     r.missing("sead::Framework::RunArg::RunArg", kRunArgCtor);

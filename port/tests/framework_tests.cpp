@@ -95,6 +95,30 @@ int main() {
               "and Framework::initialize returns without a dangling ThreadMgr heap");
     }
 
+    std::printf("\nsead::Framework::Framework (0x7100e696a4, 60 bytes)\n");
+    {
+        sead::Framework fw;
+        const unsigned char *base = reinterpret_cast<const unsigned char *>(&fw);
+
+        // The decompiled body self-links the reset event's node at +0x20/+0x28.
+        void *const *head = reinterpret_cast<void *const *>(base + 0x20);
+        void *const *tail = reinterpret_cast<void *const *>(base + 0x28);
+        Check(*head == const_cast<void *>(static_cast<const void *>(base + 0x20)),
+              "mResetEvent head self-links to +0x20");
+        Check(*tail == const_cast<void *>(static_cast<const void *>(base + 0x20)),
+              "and the tail links back to +0x20 too");
+
+        // The fields the constructor zeroes.
+        Check(*reinterpret_cast<const unsigned int *>(base + 0x30) == 0, "+0x30 is zeroed");
+        Check(*reinterpret_cast<void *const *>(base + 0x38) == nullptr, "+0x38 is zeroed");
+        Check(*reinterpret_cast<void *const *>(base + 0x40) == nullptr,
+              "mTaskMgr (+0x40) starts null");
+        Check(*reinterpret_cast<void *const *>(base + 0x48) == nullptr,
+              "mMethodTreeMgr (+0x48) starts null");
+        Check(*reinterpret_cast<void *const *>(base + 0x10) == nullptr, "+0x10 is zeroed");
+        std::printf("        constructed; reset event self-linked at +0x20\n");
+    }
+
     std::printf("\n----------------------------------------\n");
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

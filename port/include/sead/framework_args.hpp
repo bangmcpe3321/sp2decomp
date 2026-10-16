@@ -36,6 +36,26 @@ class Heap;
 
 class Framework {
 public:
+    // 0x7100e696a4, 60 bytes. The boot root constructs one of these before running.
+    //
+    // Decompiled body, reproduced field for field:
+    //     *(Framework **)(this + 0x20) = this + 0x20;   // mResetEvent: self-linked node
+    //     *(Framework **)(this + 0x28) = this + 0x20;
+    //     this[8] = 0;                                  // +0x08 mReserveReset = false
+    //     *(u32 *)(this + 0x30) = 0;                    // mResetEvent count/field
+    //     *(u64 *)(this + 0x40) = 0;                    // mTaskMgr
+    //     *(u64 *)(this + 0x48) = 0;                    // mMethodTreeMgr
+    //     *(void **)this = <Framework vtable>;          // +0x00
+    //     *(u64 *)(this + 0x38) = 0;                    // mResetParameter
+    //     *(u64 *)(this + 0x10) = 0;                    // vtable slot / base field
+    //     *(void **)(this + 0x18) = <ResetEvent vtable>;// +0x18
+    Framework();
+
+    // The offsets the constructor writes, asserted in the implementation so the model cannot
+    // drift from them -- the same guard that has caught four layout errors in this port.
+    static constexpr unsigned kResetEventOffset = 0x20;
+    static constexpr unsigned kTaskMgrOffset = 0x40;
+
     struct InitializeArg {
         InitializeArg();
 
@@ -60,6 +80,21 @@ public:
     // The heap the ThreadMgr was given, retained so a later stage can inspect or restore it.
     // The original reaches it through PTR_sInstance_7102f9d280.
     static Heap *threadMgrHeap();
+
+    // --- the modelled layout, at the offsets the constructor writes ---------------------
+    // Not part of the original's public surface; present so the constructor's stores land in
+    // the right places and the offsets can be asserted.
+    void *mVtable = nullptr;        // +0x00
+    unsigned char mPad08[0x08] = {}; // +0x08 (this[8] = 0)
+    void *mField10 = nullptr;       // +0x10
+    void *mResetEventVtable = nullptr; // +0x18 (PTR_vtable_7102fc9f88 + 0x10)
+    void *mResetEventHead = nullptr;   // +0x20 (self-linked)
+    void *mResetEventTail = nullptr;   // +0x28 (self-linked to +0x20)
+    unsigned int mResetEventCount = 0; // +0x30
+    void *mResetParameter = nullptr;   // +0x38
+    void *mTaskMgr = nullptr;          // +0x40
+    void *mMethodTreeMgr = nullptr;    // +0x48
+    void *mMethodTreeMgrHeap = nullptr; // +0x50
 };
 
 } // namespace sead

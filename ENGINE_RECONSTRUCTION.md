@@ -118,7 +118,7 @@ reconstructed steps completed: 3
   [1] Lp::Utl::dumpDateTime(" Application Start Time")
   [2] nn::os::GetSystemTick -> sRunStartTime
   [3] sead::AssertConfig::registerCallback
-STOPPED AT: sead::Framework::InitializeArg::InitializeArg (0x7100e69894)
+STOPPED AT: sead::GameFrameworkNx::initializeGraphicsSystem (0x7100e6738c)
 ```
 
 **That output is the progress metric.** It is a statement of how far the reconstruction
@@ -142,9 +142,9 @@ is recorded here so the gap is not surprising.
 | `sead::Framework::InitializeArg::InitializeArg` | **ported** (`port/src/framework_args.cpp`) — step 4 |
 | `sead::GameFrameworkNx::initialize` | **next** — a wrapper over two *unported* calls |
 | `Lp::Utl::dumpMemoryInfo` | **ported**, but unreachable until the above lands |
-| `sead::ForegroundBucketMgr::initialize` | not ported |
-| `HeapGroup::createInstance` / `createHeap` | not ported |
-| `Framework::Framework` | not ported |
+| `sead::ForegroundBucketMgr::initialize` | **ported** (4-byte no-op) |
+| `HeapGroup::createInstance` / `createHeap` | **ported** (`port/src/heap_group.cpp`) |
+| `Framework::Framework` | **ported** (`port/src/framework_args.cpp`) |
 | `sead::GameFrameworkNx::initializeGraphicsSystem` | not ported |
 | `sead::TaskBase::MgrTaskArg::MgrTaskArg` | not ported |
 | `sead::Framework::RunArg::RunArg` | **ported** (`port/src/framework_args.cpp`) |
