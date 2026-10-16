@@ -17,6 +17,7 @@ add_library(nnos STATIC
   src/nvn.cpp
   src/nvn_names.cpp
   src/task_base.cpp
+  src/graphics_allocator.cpp
   src/init.cpp
   src/date_time.cpp
   src/utl.cpp
@@ -125,5 +126,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(task_base_tests tests/task_base_tests.cpp)
   target_link_libraries(task_base_tests PRIVATE nnos)
   add_test(NAME task_base_contract COMMAND task_base_tests)
+
+  # nv::SetGraphicsAllocator + nn::mem::StandardAllocator -- the graphics entry.
+  add_executable(graphics_allocator_tests tests/graphics_allocator_tests.cpp)
+  target_link_libraries(graphics_allocator_tests PRIVATE nnos)
+  add_test(NAME graphics_allocator_contract COMMAND graphics_allocator_tests)
 
 endif()
