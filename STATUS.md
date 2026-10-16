@@ -68,6 +68,7 @@ These are the documents a port is actually written against:
 
 ### 6. Why the platform layer is missing
 
+- **[FIRMWARE_ANALYSIS.md](FIRMWARE_ANALYSIS.md)** � the firmware route: what it provides, and why it did not yield the platform layer.
 - **[PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)** — the decisive finding,
   with evidence.
 - **[IMPORT_MAPPING.md](IMPORT_MAPPING.md)** — how `main` resolves imports (PLT
