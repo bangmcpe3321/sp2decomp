@@ -1,21 +1,30 @@
-// sead::Framework argument structs — ported from their decompiled constructors.
+// sead::Framework — its argument structs and the initialize entry point.
 //
-// Both are small and FULLY OBSERVABLE: the constructors are literal 8-byte stores, so
-// there is no layout ambiguity to resolve. Field names come from the open-ead/sead
-// reference (copies in reference/seadFramework.h); the VALUES come from the binary, and
-// they do not always agree with the reference's implied defaults — see the notes below.
+// TWO SOURCES, BOTH COMMITTED AS REFERENCE:
+//   reference/seadFramework.h      -- the class and its argument structs
+//   the binary's decompiled bodies -- the VALUES and the call sequence
 //
+// Argument constructors, ported from their decompiled bodies (literal stores, so exact):
 //   sead::Framework::InitializeArg::InitializeArg()  @ 0x7100e69894
 //     *(u64 *)this     = 0x3000000    // 48 MB
 //     *(u64 *)(this+8) = 0
-//
 //   sead::Framework::RunArg::RunArg()                @ 0x7100e698a0
-//     *(u64 *)this     = 0xffffffff00000000          // two packed 32-bit fields
+//     *(u64 *)this     = 0xffffffff00000000
 //
-// The reference declares:
-//   struct InitializeArg { u64 heap_size; Arena* arena; };
-//   struct RunArg { u32 prepare_stack_size; s32 prepare_priority; };
-// which matches the observed 16-byte and 8-byte footprints.
+// initialize, ported from 0x7100e698ac (200 bytes):
+//   void sead::Framework::initialize(const InitializeArg& arg) {
+//       if (arg.arena == nullptr) HeapMgr::initialize(arg.heap_size);
+//       else                      HeapMgr::initialize(arg.arena);
+//       Heap* root = <sRootHeaps[0]>;
+//       Heap* th = ExpHeap::create(0, {"sead::ThreadMgr"}, root, 8, 1, 0);
+//       ThreadMgr::createInstance(th); ThreadMgr::initialize(instance, th);
+//       th->destroy(th);                       // vptr+0x28
+//       GlobalRandom::createInstance(root);
+//   }
+//
+// THE REFERENCE'S VALUES DO NOT ALWAYS MATCH THE BINARY'S, and the binary wins: RunArg's
+// constructor stores a word mapping to stack_size=0, priority=-1, whereas the reference
+// implies no particular defaults. Values here are the binary's.
 #pragma once
 
 #include <cstdint>
@@ -23,6 +32,7 @@
 namespace sead {
 
 class Arena; // forward; only its address is stored
+class Heap;
 
 class Framework {
 public:
@@ -36,13 +46,20 @@ public:
     struct RunArg {
         RunArg();
 
-        // The constructor writes one 64-bit word, 0xffffffff00000000. Reading it as the
-        // reference's two 32-bit fields gives prepare_stack_size = 0 and
-        // prepare_priority = -1, which is what the comments below record. The raw store is
-        // reproduced rather than the reconstruction, so the observable value is exact.
+        // The constructor writes one 64-bit word, 0xffffffff00000000. The port stores those
+        // bytes verbatim (see framework_args.cpp), which is byte-exact and cannot be got
+        // wrong by reasoning about halves or endianness -- four attempts proved that.
         std::uint32_t prepare_stack_size; // +0x00
         std::int32_t prepare_priority;    // +0x04
     };
+
+    // 0x7100e698ac, 200 bytes. First consumer of InitializeArg; calls the ported
+    // HeapMgr::initialize overloads.
+    static void initialize(const InitializeArg &arg);
+
+    // The heap the ThreadMgr was given, retained so a later stage can inspect or restore it.
+    // The original reaches it through PTR_sInstance_7102f9d280.
+    static Heap *threadMgrHeap();
 };
 
 } // namespace sead

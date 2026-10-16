@@ -21,6 +21,8 @@ add_library(nnos STATIC
   src/framework_args.cpp
   src/heap.cpp
   src/heap_mgr.cpp
+  src/thread_mgr.cpp
+  src/framework.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -90,5 +92,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(heap_mgr_tests tests/heap_mgr_tests.cpp)
   target_link_libraries(heap_mgr_tests PRIVATE nnos)
   add_test(NAME heap_mgr_contract COMMAND heap_mgr_tests)
+
+  # sead::Framework::initialize -- first consumer of InitializeArg + HeapMgr.
+  add_executable(framework_tests tests/framework_tests.cpp)
+  target_link_libraries(framework_tests PRIVATE nnos)
+  add_test(NAME framework_contract COMMAND framework_tests)
 
 endif()

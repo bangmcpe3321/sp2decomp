@@ -10,6 +10,7 @@
 #include "lp/utl.hpp"
 #include "sead/delegate_event.hpp"
 #include "sead/framework_args.hpp"
+#include "sead/heap_mgr.hpp"
 #include "nn/os.hpp"
 
 #include <cstdio>
@@ -98,11 +99,16 @@ void SequenceBody(Runner &r) {
         sead::AssertConfig::registerCallback(sAssertSlot);
     });
 
-    // --- step 4: sead::Framework::InitializeArg::InitializeArg ---------------------
-    // Now ported (port/src/framework_args.cpp), so this RUNS.
+    // --- step 4: sead::Framework::InitializeArg + Framework::initialize -------------
+    // Both ported: the constructor (framework_args.cpp) and the consumer
+    // (framework.cpp), which reaches the ported HeapMgr.
     r.step("sead::Framework::InitializeArg::InitializeArg", [] {
         static sead::Framework::InitializeArg sArg;
         (void)sArg;
+    });
+    r.step("sead::Framework::initialize", [] {
+        sead::Framework::InitializeArg arg;
+        sead::Framework::initialize(arg); // reaches HeapMgr + ExpHeap
     });
 
     // --- step 5: sead::GameFrameworkNx::initialize ---------------------------------

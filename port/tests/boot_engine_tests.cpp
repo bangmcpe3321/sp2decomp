@@ -54,8 +54,8 @@ int main() {
     Check(result.stoppedAt.find("GameFrameworkNx") != std::string::npos,
           "it stopped at the FIRST unported dependency in boot order "
           "(sead::GameFrameworkNx::initialize)");
-    Check(result.completed.size() == 4,
-          "exactly the four ported boot-root steps ran before the gap");
+    Check(result.completed.size() == 5,
+          "exactly the five ported boot-root steps ran before the gap");
 
     // Every completed step must be a real reconstructed function, not a placeholder.
     for (const auto &step : result.completed) {
