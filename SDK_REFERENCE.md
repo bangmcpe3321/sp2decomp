@@ -1,17 +1,35 @@
-# `sdk` reference — the module `main` imports its platform layer from
+# `sdk` reference — the filesystem service, and the limits of what it provides
 
-Observed contracts and decompiled bodies for **`nn::os`-class functions inside the
-`sdk` module**, which is where `main`'s 49 platform import thunks actually resolve.
+> **Read this first.** This document was opened to decompile `main`'s platform layer out
+> of `sdk`. **That premise is false and was falsified during the investigation.**
+>
+> `sdk` is the **filesystem service module** — its export table holds **233 `nn::fs`
+> exports** and **zero `nn::mem` / `nn::init` / `nn::vi` / `nn::time`** exports. The
+> platform layer `main` imports is **not in this dump at all**; the system provides it at
+> runtime. See [PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md) for the evidence.
+>
+> **What follows is therefore not a specification of the platform layer.** Section 3
+> documents 10 functions inside `sdk` that were genuinely recovered by behavioural
+> markers and decompiled — they are real, but they are *not* the implementations behind
+> `main`'s imports, and none of them is named.
+>
+> **For the platform contract, use [PLATFORM_CALL_SITES.md](PLATFORM_CALL_SITES.md)**,
+> which observes how `main` calls each of the 41 platform functions it needs.
 
-Companion to [PLATFORM_REFERENCE.md](PLATFORM_REFERENCE.md) (the 51 imports declared
+Observed contracts and decompiled bodies for functions **inside** the `sdk` module.
+
+Companion documents:
+[PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md) (where the platform layer is —
+and is not), [PLATFORM_CALL_SITES.md](PLATFORM_CALL_SITES.md) (the contracts `main`
+calls against), [PLATFORM_REFERENCE.md](PLATFORM_REFERENCE.md) (the 51 imports declared
 in `main`) and [ENGINE_REFERENCE.md](ENGINE_REFERENCE.md) (the boot-closure engine).
 
 ---
 
-## 1. Why `sdk` is the right target — proven, not assumed
+## 1. What the instruction probes established
 
 `main`'s platform functions are 13-byte import thunks that forward through pointers.
-Symbol-free instruction probes settle where the real code lives:
+Symbol-free instruction probes locate OS-layer code by behaviour:
 
 | Marker | `main` | `sdk` | Meaning |
 |---|---:|---:|---|

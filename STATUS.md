@@ -1,0 +1,112 @@
+# Reading order and honest status
+
+This repository grew out of one question: *can Splatoon 2's `main` be decompiled well
+enough to port the boot path to PC?* This page says what was answered, what was not, and
+what to read first.
+
+---
+
+## The short version
+
+| Question | Answer |
+|---|---|
+| Can a decompiler be driven against this target? | **Yes** — REA + Ghidra on Linux/WSL. See [DECOMPILATION_UNBLOCKED.md](DECOMPILATION_UNBLOCKED.md) |
+| Is the boot path decoded? | **Yes** — 184-function closure, [BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md) |
+| Are real function bodies available? | **Yes** for `main` — 5 decompiled, sizes match hand-decoding exactly ([DECOMPILED_BODIES.md](DECOMPILED_BODIES.md)) |
+| Is `main`'s platform layer in the game dump? | **No.** It is imported and resolved by the system at runtime ([PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)) |
+| Can the platform layer be decompiled from `sdk`? | **No.** `sdk` is the filesystem service — 233 `nn::fs` exports, zero `nn::mem`/`nn::init`/`nn::vi`/`nn::time` |
+| Is there a vendor source to port from? | **No.** The 51 platform functions must be written |
+| Is the contract for them recoverable? | **Yes** — from call sites in `main`. [PLATFORM_CALL_SITES.md](PLATFORM_CALL_SITES.md) |
+
+**The practical consequence:** the port's platform layer is a **fresh implementation of
+exactly 51 functions**, not a port of existing code. That is a smaller and better-defined
+job than it first appeared, but it is not a decompilation task.
+
+---
+
+## Reading order
+
+### 1. Start here — what the target is
+
+- **[README.md](README.md)** — target identification, memory map, subsystem survey.
+- **[subsystem-map.txt](subsystem-map.txt)** — 109-subsystem breakdown (2.7 MB).
+
+### 2. The port plan
+
+- **[PORTING.md](PORTING.md)** — scope and strategy.
+- **[BOOT_MILESTONE.md](BOOT_MILESTONE.md)** — the narrowed target: boot to menu.
+- **[BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md)** — the decoded startup chain and the
+  184-function closure.
+- **[PORT_WORKLIST.md](PORT_WORKLIST.md)** — the 51-function boot implementation list.
+  ⚠️ **Its addresses are GOT slots, not code** — see §"Known defects" below.
+
+### 3. Decompilation
+
+- **[DECOMPILATION_UNBLOCKED.md](DECOMPILATION_UNBLOCKED.md)** — the WSL route that
+  makes REA's Ghidra provider usable on this target.
+- **[DECOMPILED_BODIES.md](DECOMPILED_BODIES.md)** — the first decompiler-verified
+  bodies from `main`, and the cross-check that validated the hand-decoded work.
+- **[VERIFICATION.md](VERIFICATION.md)**, **[VTABLE_VERIFICATION.md](VTABLE_VERIFICATION.md)**
+  — layout and vtable verification against the binary.
+
+### 4. The implementation references
+
+These are the documents a port is actually written against:
+
+| Document | What it gives you |
+|---|---|
+| **[PLATFORM_CALL_SITES.md](PLATFORM_CALL_SITES.md)** | **How `main` calls each platform function** — 41 callees, 66 call sites. Arity and argument shape. |
+| **[PLATFORM_REFERENCE.md](PLATFORM_REFERENCE.md)** | Observed ABI signatures of the 51 imports declared in `main`. |
+| **[ENGINE_REFERENCE.md](ENGINE_REFERENCE.md)** | 126 boot-closure engine functions with signatures and roles, banded by depth. |
+
+### 5. Why the platform layer is missing
+
+- **[PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)** — the decisive finding,
+  with evidence.
+- **[IMPORT_MAPPING.md](IMPORT_MAPPING.md)** — how `main` resolves imports (PLT
+  lazy-binding), and why no static mapping exists.
+- **[SDK_ANALYSIS.md](SDK_ANALYSIS.md)** — the `sdk` investigation log, including the
+  negative results.
+- **[SDK_REFERENCE.md](SDK_REFERENCE.md)** — 10 genuinely recovered `sdk` functions
+  (not the platform layer).
+
+### 6. Ecosystem and graphics
+
+- **[ECOSYSTEM.md](ECOSYSTEM.md)** — all 16 `open-ead` repositories surveyed.
+- **[SEAD_COVERAGE.md](SEAD_COVERAGE.md)**, **[AGL_COVERAGE.md](AGL_COVERAGE.md)**,
+  **[NNWARE_COVERAGE.md](NNWARE_COVERAGE.md)** — what existing decompilations cover.
+- **[GRAPHICS_NVN.md](GRAPHICS_NVN.md)** — why NVN's single dispatch table makes the GPU
+  layer tractable.
+
+---
+
+## Known defects in this repository's own artifacts
+
+Recorded because acting on them without knowing would waste time:
+
+1. **`PORT_WORKLIST.md` addresses are GOT slots, not code.** Ghidra promoted them to
+   "functions", so they look like code addresses but return `NO THUNK` on lookup. Caller
+   discovery by address fails for these entries.
+2. **`nso2elf.mjs` reads the wrong MOD0 fields.** It uses `MOD0+0x18`/`+0x1c` as the
+   string/symbol table pointers; for `sdk` those are a zeroed struct pointer and garbage.
+   It produces a *self-consistent but wrong* `.symtab`. Root cause in
+   [NSO2ELF_MOD0_BUG.md](NSO2ELF_MOD0_BUG.md).
+3. **`nso2elf.mjs` emits no `.dynsym`/`.rela` sections**, so the converted ELF loses the
+   symbol information the original NSO carries.
+4. **Platform thunk signatures are misleading.** Ghidra renders many 13-byte imports as
+   `f(void)`; use [PLATFORM_CALL_SITES.md](PLATFORM_CALL_SITES.md) for real arity.
+
+## Tooling
+
+- `tools/static/` — Node analysis scripts (layout, xrefs, call graphs, references).
+- `tools/ghidra/` — Ghidra scripts. **Java only**: Ghidra 12 headless has no Jython and
+  PyGhidra cannot install here (host Python 3.14 vs bundled cp310/cp311 wheels).
+- `tools/wsl/` — the Linux-side setup and analysis scripts.
+- `tools/nso/` — NSO→ELF conversion and validation.
+
+## What is *not* in this repository
+
+- **No game code.** It holds analysis, tooling and documentation, not Nintendo's source
+  or binaries. The `.gitignore` blocks images, keys, NSO/ELF files and inventories.
+- **No implementation of the platform layer** — that is the port's work, and this repo
+  documents the contract for it rather than doing it.
