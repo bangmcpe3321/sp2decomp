@@ -16,11 +16,18 @@ what to read first.
 | Is `main`'s platform layer in the game dump? | **No.** It is imported and resolved by the system at runtime ([PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)) |
 | Can the platform layer be decompiled from `sdk`? | **No.** `sdk` is the filesystem service — 233 `nn::fs` exports, zero `nn::mem`/`nn::init`/`nn::vi`/`nn::time` |
 | Is there a vendor source to port from? | **No.** The 51 platform functions must be written |
-| Is the contract for them recoverable? | **Yes** — from call sites in `main`. [PLATFORM_CALL_SITES.md](PLATFORM_CALL_SITES.md) |
+| Is the contract for them recoverable? | **Yes** — from call sites in `main`. [PLATFORM_IMPLEMENTATION_SPEC.md](PLATFORM_IMPLEMENTATION_SPEC.md) |
+| Has the port been started? | **Yes.** `port/` builds a tested `nn::os` subset — 21 contract checks passing |
 
 **The practical consequence:** the port's platform layer is a **fresh implementation of
 exactly 51 functions**, not a port of existing code. That is a smaller and better-defined
 job than it first appeared, but it is not a decompilation task.
+
+**Status of the port itself:** `port/` implements the 5 hottest imports
+(`GetSystemTick`, `GetTlsValue`, `LockMutex`/`UnlockMutex`, `GetCurrentCoreNumber`, plus
+`InitializeMutex` and friends) against the call-site spec. It compiles under GCC 15.2,
+CMake 4.2 and Ninja in WSL and passes 21 contract checks asserting the properties its
+callers require. The remaining ~46 imports are not yet written.
 
 ---
 
@@ -59,7 +66,7 @@ These are the documents a port is actually written against:
 | **[PLATFORM_REFERENCE.md](PLATFORM_REFERENCE.md)** | Observed ABI signatures of the 51 imports declared in `main`. |
 | **[ENGINE_REFERENCE.md](ENGINE_REFERENCE.md)** | 126 boot-closure engine functions with signatures and roles, banded by depth. |
 
-### 5. Why the platform layer is missing
+### 6. Why the platform layer is missing
 
 - **[PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)** — the decisive finding,
   with evidence.
@@ -70,13 +77,19 @@ These are the documents a port is actually written against:
 - **[SDK_REFERENCE.md](SDK_REFERENCE.md)** — 10 genuinely recovered `sdk` functions
   (not the platform layer).
 
-### 6. Ecosystem and graphics
+### 7. Ecosystem and graphics
 
 - **[ECOSYSTEM.md](ECOSYSTEM.md)** — all 16 `open-ead` repositories surveyed.
 - **[SEAD_COVERAGE.md](SEAD_COVERAGE.md)**, **[AGL_COVERAGE.md](AGL_COVERAGE.md)**,
   **[NNWARE_COVERAGE.md](NNWARE_COVERAGE.md)** — what existing decompilations cover.
 - **[GRAPHICS_NVN.md](GRAPHICS_NVN.md)** — why NVN's single dispatch table makes the GPU
   layer tractable.
+
+### 5. The port
+
+- **[port/](port/)** - the actual platform layer: CMake project, 
+n::os header and
+  implementation, and contract tests. Build and test with 	ools/wsl/wsl-build-port.sh.
 
 ---
 
