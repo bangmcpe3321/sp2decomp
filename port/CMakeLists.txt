@@ -19,6 +19,7 @@ add_library(nnos STATIC
   src/boot_sequence.cpp
   src/delegate_event.cpp
   src/framework_args.cpp
+  src/heap.cpp
 )
 target_include_directories(nnos PUBLIC include)
 find_package(Threads REQUIRED)
@@ -78,5 +79,10 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(framework_args_tests tests/framework_args_tests.cpp)
   target_link_libraries(framework_args_tests PRIVATE nnos)
   add_test(NAME framework_args_contract COMMAND framework_args_tests)
+
+  # sead::Heap / ExpHeap -- the interface over the host allocator.
+  add_executable(heap_tests tests/heap_tests.cpp)
+  target_link_libraries(heap_tests PRIVATE nnos)
+  add_test(NAME heap_contract COMMAND heap_tests)
 
 endif()
