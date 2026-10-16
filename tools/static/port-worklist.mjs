@@ -216,13 +216,16 @@ for (const [g, items] of groups.entries()) {
 }
 
 for (const ph of [...byPhase.keys()].sort((a, c) => a - c)) {
+  // U+2014 written as an escape so this generator stays ASCII, avoiding any
+  // codepage dependency when its output is written or post-processed.
+  const DASH = "\u2014";
   const label = {
-    1: "Phase 1 — memory and OS foundation (must work first; stubs here hang boot)",
-    2: "Phase 2 — lifecycle, time, logging",
-    3: "Phase 3 — filesystem (romfs becomes visible)",
-    4: "Phase 4 — display and NVN bootstrap",
-    5: "Phase 5 — nn::gfx",
-    6: "Phase 6 — other",
+    1: `Phase 1 ${DASH} memory and OS foundation (must work first; stubs here hang boot)`,
+    2: `Phase 2 ${DASH} lifecycle, time, logging`,
+    3: `Phase 3 ${DASH} filesystem (romfs becomes visible)`,
+    4: `Phase 4 ${DASH} display and NVN bootstrap`,
+    5: `Phase 5 ${DASH} nn::gfx`,
+    6: `Phase 6 ${DASH} other`,
   }[ph] ?? `Phase ${ph}`;
   out.push(`## ${label}`);
   out.push("");

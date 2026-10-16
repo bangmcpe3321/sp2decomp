@@ -1,5 +1,7 @@
 # Port worklist: boot to main menu
 
+[Tiếng Việt](PORT_WORKLIST_vi.md)
+
 Generated from the decoded call graph. Each entry is a platform function the
 boot closure actually calls, with every boot-closure call site, so the
 implementation can be written against observed usage rather than a guessed

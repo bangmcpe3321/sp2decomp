@@ -1,5 +1,7 @@
 # Milestone: boot to main menu (offline, single-player only)
 
+[Tiếng Việt](BOOT_MILESTONE_vi.md)
+
 The narrowest useful target: play the original `main` on PC and reach the title
 screen, with no gameplay behind it yet.
 
