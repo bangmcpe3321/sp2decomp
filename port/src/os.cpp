@@ -16,10 +16,18 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <new>
+#include <string>
 #include <thread>
+
+#if !defined(_WIN32)
+#  include <pthread.h>
+#endif
 
 #if defined(_WIN32)
 #  define WIN32_LEAN_AND_MEAN
@@ -49,6 +57,26 @@ std::uint64_t NowTicks() {
 constexpr std::uint32_t kTlsSlotCount = 16;
 thread_local void *g_tls[kTlsSlotCount] = {};
 std::atomic<std::uint32_t> g_tlsNext{0};
+TlsDestructor g_tlsDestructor[kTlsSlotCount] = {};
+
+// ---- thread handles -----------------------------------------------------
+// The game stores an opaque handle and uses it as an identity token — the observed code
+// paths never dereference it. A stable per-thread id is therefore faithful.
+thread_local std::uint32_t g_threadId = 0;
+std::atomic<std::uint32_t> g_nextThreadId{1};
+std::mutex g_threadNamesLock;
+std::map<std::uint32_t, std::string> g_threadNames;
+
+std::uint32_t CurrentThreadId() {
+    if (g_threadId == 0) g_threadId = g_nextThreadId.fetch_add(1);
+    return g_threadId;
+}
+
+// ---- memory -------------------------------------------------------------
+// AllocateMemoryBlock observably rounds up to 2 MB at a call site
+// (`param_1 + 0x1fffffU & 0xffffffffffe00000`) and requests are large (0x2000000 =
+// 32 MB observed), so page-aligned host allocation matches the intent.
+constexpr std::uint64_t kAllocGranularity = 0x200000; // 2 MB
 
 // ---- mutex --------------------------------------------------------------
 // The game allocates storage inline and hands us the pointer, e.g.
@@ -108,9 +136,47 @@ void SetTlsValue(std::uint32_t slot, void *value) {
     g_tls[slot] = value;
 }
 
-std::uint32_t AllocateTlsSlot() {
+int AllocateTlsSlot(std::uint32_t *outSlot, TlsDestructor destructor) {
+    if (outSlot == nullptr) return -1;
     const std::uint32_t slot = g_tlsNext.fetch_add(1);
-    return slot < kTlsSlotCount ? slot : kTlsSlotCount; // kTlsSlotCount signals failure
+    if (slot >= kTlsSlotCount) return -1;
+    g_tlsDestructor[slot] = destructor;
+    *outSlot = slot;
+    return 0;
+}
+
+// ---- memory -------------------------------------------------------------
+
+int AllocateMemoryBlock(std::uint64_t *outAddress, std::uint64_t size) {
+    if (outAddress == nullptr) return -1;
+    *outAddress = 0;
+    if (size == 0) return -1;
+    const std::uint64_t rounded = (size + kAllocGranularity - 1) & ~(kAllocGranularity - 1);
+    void *p = nullptr;
+#if defined(_WIN32)
+    p = _aligned_malloc(static_cast<std::size_t>(rounded), 4096);
+#else
+    if (posix_memalign(&p, 4096, static_cast<std::size_t>(rounded)) != 0) p = nullptr;
+#endif
+    if (p == nullptr) return -1;
+    std::memset(p, 0, static_cast<std::size_t>(rounded));
+    *outAddress = reinterpret_cast<std::uint64_t>(p);
+    return 0;
+}
+
+void QueryMemoryInfo(MemoryInfo *out) {
+    if (out == nullptr) return;
+    // Used during boot to size heaps and print the "%4ld MB: Program" diagnostics seen
+    // at LogImpl call sites. Report a plausible Switch budget rather than the host's, so
+    // heap-sizing logic sees the platform it was written for.
+    constexpr std::uint64_t kSwitchTotalMemory = 4ull * 1024 * 1024 * 1024;
+    out->totalSize = kSwitchTotalMemory;
+    out->usedSize = 0;
+}
+
+void SetMemoryHeapSize(std::uint64_t /*size*/) {
+    // The standalone-heap budget. The host allocator does not need it; recorded as a
+    // no-op rather than pretending to enforce a limit.
 }
 
 // ---- synchronisation ----------------------------------------------------
@@ -144,19 +210,25 @@ void InitializeSemaphore(SemaphoreType *semaphore, int /*initial*/, int /*max*/)
 void AcquireSemaphore(SemaphoreType *) {}
 void ReleaseSemaphore(SemaphoreType *) {}
 
+void InitializeMessageQueue(MessageQueueType *queue, std::uint64_t *buffer, std::size_t count) {
+    if (queue == nullptr) return;
+    std::memset(queue->storage, 0, sizeof(queue->storage));
+    if (buffer != nullptr) std::memset(buffer, 0, count * sizeof(std::uint64_t));
+}
+
 // ---- CPU / threads ------------------------------------------------------
 
 std::uint32_t GetCurrentCoreNumber() {
-    // The game uses this to pick per-core work buffers; any stable value in range is a
-    // valid stand-in. std::thread::hardware_concurrency is the honest host analogue but
-    // is not guaranteed to identify the *current* core, so report 0 deterministically.
+    // Callers use this to pick per-core work buffers, so any stable in-range value works.
+    // std::thread::hardware_concurrency is the host analogue but does not identify the
+    // *current* core, so report 0 deterministically rather than a misleading value.
     return 0;
 }
 
 std::uint64_t GetThreadAvailableCoreMask() {
     const unsigned n = std::thread::hardware_concurrency();
-    // Switch has 4 cores (0..3). Mask off anything above that so game code sizing
-    // per-core arrays stays within the range the data structures expect.
+    // The Switch has 4 cores. Cap the mask so game code sizing per-core arrays stays
+    // inside the range its data structures expect.
     const unsigned usable = n == 0 ? 1u : (n > 4u ? 4u : n);
     return (1ull << usable) - 1ull;
 }
@@ -164,17 +236,45 @@ std::uint64_t GetThreadAvailableCoreMask() {
 void SetThreadCoreMask(ThreadType *, int, std::uint64_t) {}
 void ChangeThreadPriority(ThreadType *, int) {}
 
-std::uint32_t GetCurrentThread() {
-    // A non-null opaque handle. The game only uses it as an identity token (e.g.
-    // comparing against a stored thread id), so a stable per-thread value is faithful.
-    static thread_local std::uint32_t id = 0;
-    if (id == 0) {
-        static std::atomic<std::uint32_t> next{1};
-        id = next.fetch_add(1);
-    }
-    return id;
+std::uint32_t GetCurrentThread() { return CurrentThreadId(); }
+
+std::uint64_t GetThreadId(ThreadType *thread) {
+    // A ThreadType the game created is identified by its storage address; a null pointer
+    // means "the current thread".
+    if (thread == nullptr) return CurrentThreadId();
+    return reinterpret_cast<std::uint64_t>(thread);
 }
 
-std::uint64_t GetThreadId(ThreadType *) { return 0; }
+int GetThreadPriority(ThreadType *) {
+    // The SDK's default priority. Callers compare and restore it, so a stable value is
+    // required; they do not act on the magnitude.
+    return 0x20;
+}
+
+void SetThreadName(ThreadType *thread, const char *name) {
+    if (name == nullptr) return;
+    const std::uint32_t id = thread == nullptr ? CurrentThreadId()
+                                               : static_cast<std::uint32_t>(
+                                                     reinterpret_cast<std::uintptr_t>(thread));
+    std::lock_guard<std::mutex> g(g_threadNamesLock);
+    g_threadNames[id] = name;
+}
+
+void GetCurrentStackInfo(std::uintptr_t *outBase, std::uintptr_t *outSize) {
+    if (outBase != nullptr) *outBase = 0;
+    if (outSize != nullptr) *outSize = 0;
+#if !defined(_WIN32)
+    pthread_attr_t attr;
+    if (pthread_getattr_np(pthread_self(), &attr) == 0) {
+        void *addr = nullptr;
+        std::size_t size = 0;
+        if (pthread_attr_getstack(&attr, &addr, &size) == 0) {
+            if (outBase != nullptr) *outBase = reinterpret_cast<std::uintptr_t>(addr);
+            if (outSize != nullptr) *outSize = static_cast<std::uintptr_t>(size);
+        }
+        pthread_attr_destroy(&attr);
+    }
+#endif
+}
 
 } // namespace nn::os

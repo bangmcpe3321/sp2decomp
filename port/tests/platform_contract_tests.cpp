@@ -107,8 +107,12 @@ void TestSleepThread() {
 void TestTls() {
     std::printf("TLS (GetTlsValue 264, SetTlsValue 8 call sites)\n");
 
-    const std::uint32_t slot = nn::os::AllocateTlsSlot();
-    Check(slot < 16, "AllocateTlsSlot returns a slot below the 16-slot limit");
+    // Observed signature: AllocateTlsSlot(this + 0x88, (TlsDestructor)0x0) — the slot
+    // number comes back through the first argument, not as a return value.
+    std::uint32_t slot = 0xFFFFFFFFu;
+    const int rc = nn::os::AllocateTlsSlot(&slot, nullptr);
+    Check(rc == 0, "AllocateTlsSlot returns success");
+    Check(slot < 16, "and writes a slot number below the 16-slot limit through the out param");
 
     nn::os::SetTlsValue(slot, reinterpret_cast<void *>(0x1234));
     Check(nn::os::GetTlsValue(slot) == reinterpret_cast<void *>(0x1234),
@@ -125,6 +129,96 @@ void TestTls() {
           "value is overwritable");
 
     Check(nn::os::GetTlsValue(9999) == nullptr, "out-of-range slot reads as null");
+
+    // Exhaustion must be reported, not silently wrapped.
+    std::uint32_t last = 0;
+    int lastRc = 0;
+    for (int i = 0; i < 40; ++i) lastRc = nn::os::AllocateTlsSlot(&last, nullptr);
+    Check(lastRc != 0, "allocating past 16 slots fails rather than wrapping");
+}
+
+// ---------------------------------------------------------------------------
+// Memory — AllocateMemoryBlock(&local_18, 0x2000000) => (out, size); the caller then
+// rounds its request up to a 2 MB granularity, so the allocation must be page-aligned.
+// ---------------------------------------------------------------------------
+void TestMemory() {
+    std::printf("Memory (AllocateMemoryBlock, QueryMemoryInfo, SetMemoryHeapSize)\n");
+
+    std::uint64_t addr = 0;
+    const int rc = nn::os::AllocateMemoryBlock(&addr, 0x2000000); // 32 MB observed
+    Check(rc == 0, "AllocateMemoryBlock(32 MB) succeeds");
+    Check(addr != 0, "and writes a non-null address through the out param");
+    Check((addr & 0xFFF) == 0, "the address is page-aligned");
+    if (addr != 0) {
+        // Must be usable and zero-filled: callers treat it as fresh heap.
+        auto *p = reinterpret_cast<volatile std::uint64_t *>(addr);
+        Check(p[0] == 0 && p[4096 / 8] == 0, "the block is zero-filled and writable");
+        std::free(reinterpret_cast<void *>(addr));
+    }
+
+    std::uint64_t none = 0xFFFF;
+    Check(nn::os::AllocateMemoryBlock(&none, 0) != 0, "a zero-size request fails");
+
+    nn::os::MemoryInfo info{};
+    nn::os::QueryMemoryInfo(&info);
+    Check(info.totalSize > 0, "QueryMemoryInfo reports a non-zero total");
+    std::printf("        reported total = %llu MB\n",
+                static_cast<unsigned long long>(info.totalSize / (1024 * 1024)));
+
+    nn::os::SetMemoryHeapSize(0x10000000);
+    Check(true, "SetMemoryHeapSize accepts a budget without crashing");
+
+    nn::os::QueryMemoryInfo(nullptr); // must not crash
+    Check(true, "QueryMemoryInfo tolerates a null out pointer");
+}
+
+// ---------------------------------------------------------------------------
+// Thread queries — GetThreadId/GetThreadPriority/SetThreadName/GetCurrentStackInfo.
+// Callers use the id as an identity token and store the name for debugging.
+// ---------------------------------------------------------------------------
+void TestThreadQueries() {
+    std::printf("Thread queries (GetThreadId, GetThreadPriority, SetThreadName, GetCurrentStackInfo)\n");
+
+    const std::uint32_t id = nn::os::GetCurrentThread();
+    Check(nn::os::GetThreadId(nullptr) == id,
+          "GetThreadId(nullptr) reports the current thread");
+    Check(nn::os::GetCurrentThread() == id, "current thread id is stable");
+
+    const int prio = nn::os::GetThreadPriority(nullptr);
+    Check(prio > 0, "GetThreadPriority returns a positive SDK-range priority");
+
+    nn::os::SetThreadName(nullptr, "sp2-main");
+    Check(true, "SetThreadName accepts the current thread");
+
+    std::uintptr_t base = 0, size = 0;
+    nn::os::GetCurrentStackInfo(&base, &size);
+    std::printf("        stack base=0x%llx size=%llu bytes\n",
+                static_cast<unsigned long long>(base),
+                static_cast<unsigned long long>(size));
+    Check(size > 0, "GetCurrentStackInfo reports a non-zero stack size");
+    Check(size < (1ull << 32), "and a plausible magnitude");
+
+    nn::os::GetCurrentStackInfo(nullptr, nullptr); // must not crash
+    Check(true, "GetCurrentStackInfo tolerates null out pointers");
+}
+
+// ---------------------------------------------------------------------------
+// Message queue / semaphore storage — the game allocates these inline inside its own
+// objects and hands us the address, so initialisation must stay within the storage.
+// ---------------------------------------------------------------------------
+void TestQueueAndSemaphore() {
+    std::printf("Message queue / semaphore (inline caller-owned storage)\n");
+
+    alignas(16) nn::os::MessageQueueType q{};
+    std::uint64_t buffer[0x20] = {};
+    nn::os::InitializeMessageQueue(&q, buffer, 0x20);
+    Check(true, "InitializeMessageQueue accepts inline queue and buffer storage");
+
+    alignas(16) nn::os::SemaphoreType s{};
+    nn::os::InitializeSemaphore(&s, 1, 1);
+    nn::os::AcquireSemaphore(&s);
+    nn::os::ReleaseSemaphore(&s);
+    Check(true, "semaphore initialise/acquire/release do not crash");
 }
 
 // ---------------------------------------------------------------------------
@@ -224,7 +318,13 @@ int main() {
     std::printf("\n");
     TestMutex();
     std::printf("\n");
+    TestMemory();
+    std::printf("\n");
     TestCoreQueries();
+    std::printf("\n");
+    TestThreadQueries();
+    std::printf("\n");
+    TestQueueAndSemaphore();
 
     std::printf("\n----------------------------------------\n");
     std::printf("%d checks, %d failures\n", g_checks, g_failures);

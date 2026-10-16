@@ -46,8 +46,23 @@ struct EventType {
 
 // Returned by QueryMemoryInfo; the game passes a pointer it owns.
 struct MemoryInfo {
-    std::uint64_t totalSize;      // observed: QueryMemoryInfo(&local)
+    std::uint64_t totalSize;      // observed: QueryMemoryInfo((MemoryInfo *)&local_58)
     std::uint64_t usedSize;
+};
+
+// Message queue storage the game allocates inline:
+// `InitializeMessageQueue((MessageQueueType *)(this + 0x1f8), (ulong *)(this + 0x240), 0x20)`
+struct MessageQueueType {
+    alignas(16) unsigned char storage[0x40];
+};
+
+// Thread-local-destructor callback passed to AllocateTlsSlot.
+using TlsDestructor = void (*)(std::uint64_t);
+
+// Stack region reported by GetCurrentStackInfo.
+struct StackInfo {
+    std::uintptr_t base;
+    std::uintptr_t size;
 };
 
 // ---- time ----------------------------------------------------------------
@@ -56,19 +71,33 @@ struct MemoryInfo {
 constexpr std::uint64_t kTickFrequencyHz = 19'200'000;
 std::uint64_t GetSystemTick();
 
-// `nn::os::SleepThread(5000000);` — 23 call sites. Nanoseconds.
-void SleepThread(std::int64_t nanoseconds);
+// `nn::os::SleepThread(5000000);` — 23 call sites, nanoseconds.
+// A call with no argument is also observed (`nn::os::SleepThread();`), which is the
+// SDK's "sleep indefinitely" form; default it to zero so the arity matches both.
+void SleepThread(std::int64_t nanoseconds = 0);
 
-// `nn::os::ConvertToTimeSpan(...)` — 21 call sites.
+// `lVar9 = nn::os::ConvertToTimeSpan(lVar7 - lVar9);` — 21 call sites. Converts a
+// nanosecond duration to ticks (results are compared against GetSystemTick output).
 std::uint64_t ConvertToTimeSpan(std::int64_t nanoseconds);
+
+// ---- memory --------------------------------------------------------------
+// `nn::os::AllocateMemoryBlock(&local_18, 0x2000000);` — the first argument is an OUT
+// pointer for the allocation, the second a byte size (observably rounded up to 2 MB).
+// Returns a result code that callers test.
+int AllocateMemoryBlock(std::uint64_t *outAddress, std::uint64_t size);
+// `nn::os::QueryMemoryInfo((MemoryInfo *)&local_58);`
+void QueryMemoryInfo(MemoryInfo *out);
+// `nn::os::SetMemoryHeapSize(uVar1);`
+void SetMemoryHeapSize(std::uint64_t size);
 
 // ---- TLS -----------------------------------------------------------------
 // `lVar8 = nn::os::GetTlsValue(*(undefined4 *)puVar6);`   — 264 call sites.
 // `nn::os::SetTlsValue(*(undefined4 *)(this + 0x88), this_00);` — 8 call sites.
-// The slot is a 32-bit index; the value is a pointer-wide quantity.
 void *GetTlsValue(std::uint32_t slot);
 void SetTlsValue(std::uint32_t slot, void *value);
-std::uint32_t AllocateTlsSlot();
+// `nn::os::AllocateTlsSlot(this + 0x88, (_func_void_ulong *)0x0);` — the first argument
+// is an OUT pointer receiving the slot number, the second an optional destructor.
+int AllocateTlsSlot(std::uint32_t *outSlot, TlsDestructor destructor);
 
 // ---- synchronisation -----------------------------------------------------
 // `nn::os::InitializeMutex(pMVar9, false, 0);` — 56 call sites.
@@ -83,13 +112,22 @@ void InitializeSemaphore(SemaphoreType *semaphore, int initial, int max);
 void AcquireSemaphore(SemaphoreType *semaphore);
 void ReleaseSemaphore(SemaphoreType *semaphore);
 
+// `InitializeMessageQueue((MessageQueueType *)(this + 0x1f8), (ulong *)(this + 0x240), 0x20);`
+void InitializeMessageQueue(MessageQueueType *queue, std::uint64_t *buffer, std::size_t count);
+
 // ---- CPU / threads -------------------------------------------------------
 // `uVar7 = nn::os::GetCurrentCoreNumber();` — 121 call sites.
 std::uint32_t GetCurrentCoreNumber();
 std::uint64_t GetThreadAvailableCoreMask();
+// `nn::os::SetThreadCoreMask(*(ThreadType **)(this + 0xe0), -1, (ulong)uVar1);`
+// core == -1 means "any core in mask".
 void SetThreadCoreMask(ThreadType *thread, int core, std::uint64_t mask);
 void ChangeThreadPriority(ThreadType *thread, int priority);
 std::uint32_t GetCurrentThread();
 std::uint64_t GetThreadId(ThreadType *thread);
+int GetThreadPriority(ThreadType *thread);
+void SetThreadName(ThreadType *thread, const char *name);
+// `nn::os::GetCurrentStackInfo((ulong *)&local_38, (ulong *)local_48);` — two OUT params.
+void GetCurrentStackInfo(std::uintptr_t *outBase, std::uintptr_t *outSize);
 
 } // namespace nn::os
