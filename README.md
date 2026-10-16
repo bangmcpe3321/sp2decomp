@@ -8,7 +8,7 @@ This repository documents what was established about the module's **structure,
 architecture and subsystem layout**, together with the scripts used to establish
 it. It is a research log, not a finished decompilation.
 
-> **Porting to PC?** See **[PORTING.md](PORTING.md)** for scope, **[BOOT_MILESTONE.md](BOOT_MILESTONE.md)** for the narrowed target, and **[BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md)** for the decoded startup chain. Full 109-subsystem breakdown in [subsystem-map.txt](subsystem-map.txt).
+> **Porting to PC?** See **[PORTING.md](PORTING.md)** for scope, **[BOOT_MILESTONE.md](BOOT_MILESTONE.md)** for the narrowed target, **[BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md)** for the decoded startup chain, and **[SEAD_COVERAGE.md](SEAD_COVERAGE.md)** for what the existing sead decompilation covers. Full 109-subsystem breakdown in [subsystem-map.txt](subsystem-map.txt).
 > build-order roadmap, and **[BOOT_MILESTONE.md](BOOT_MILESTONE.md)** for the
 > narrow "boot to main menu" target. The full 109-subsystem breakdown is in
 > [`subsystem-map.txt`](subsystem-map.txt).
