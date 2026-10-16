@@ -66,7 +66,7 @@ These are the documents a port is actually written against:
 | **[PLATFORM_REFERENCE.md](PLATFORM_REFERENCE.md)** | Observed ABI signatures of the 51 imports declared in `main`. |
 | **[ENGINE_REFERENCE.md](ENGINE_REFERENCE.md)** | 126 boot-closure engine functions with signatures and roles, banded by depth. |
 
-### 6. Why the platform layer is missing
+### 7. Why the platform layer is missing
 
 - **[FIRMWARE_ANALYSIS.md](FIRMWARE_ANALYSIS.md)** � the firmware route: what it provides, and why it did not yield the platform layer.
 - **[PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)** — the decisive finding,
@@ -78,7 +78,7 @@ These are the documents a port is actually written against:
 - **[SDK_REFERENCE.md](SDK_REFERENCE.md)** — 10 genuinely recovered `sdk` functions
   (not the platform layer).
 
-### 7. Ecosystem and graphics
+### 8. Ecosystem and graphics
 
 - **[ECOSYSTEM.md](ECOSYSTEM.md)** — all 16 `open-ead` repositories surveyed.
 - **[SEAD_COVERAGE.md](SEAD_COVERAGE.md)**, **[AGL_COVERAGE.md](AGL_COVERAGE.md)**,
@@ -86,7 +86,12 @@ These are the documents a port is actually written against:
 - **[GRAPHICS_NVN.md](GRAPHICS_NVN.md)** — why NVN's single dispatch table makes the GPU
   layer tractable.
 
-### 5. The port
+### 5. The engine reconstruction
+
+- **[ENGINE_RECONSTRUCTION.md](ENGINE_RECONSTRUCTION.md)** - the engine-layer target: the boot root's 13 direct dependencies, with addresses, and the fail-loudly method.
+- **[BOOT_ENGINE_ORDER.md](BOOT_ENGINE_ORDER.md)** - those dependencies in first-appearance order.
+
+### 6. The port
 
 - **[TYPE_SIZES.md](TYPE_SIZES.md)** � what is actually measured about the SDK's opaque types, and what is not.
 - **[port/](port/)** - the actual platform layer: CMake project, 
