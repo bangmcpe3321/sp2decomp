@@ -182,11 +182,13 @@ implementation surface for this milestone.
 > call (`Lp::Sys::WorkerThreadMgr::run`), and the total is 184. The fix is in
 > `tools/static/boot-closure.mjs`.
 
-### The 46 platform functions on the critical path
+### The 51 platform functions on the critical path
 
-These are the functions that cannot be stubbed and must be genuinely implemented:
+Recomputed against the corrected closure. These are the functions that cannot be
+stubbed and must be genuinely implemented. The full per-function table, with every
+boot-closure call site, is in **[PORT_WORKLIST.md](PORT_WORKLIST.md)**.
 
-**`nn::os` — threading and time (21)**
+**`nn::os` — threading and time (24)**
 
 ```
 nn::os::QueryMemoryInfo              nn::os::CreateThread
@@ -203,7 +205,7 @@ nn::os::InitializeMessageQueue       nn::os::GetCurrentStackInfo
 nn::os::GetSystemTick                nn::os::ConvertToTimeSpan
 ```
 
-**`nn::mem` + `nn::init` — allocation (5)**
+**`nn::mem` + `nn::init` — allocation (6)**
 
 ```
 nn::mem::StandardAllocator           nn::mem::StandardAllocator::Allocate

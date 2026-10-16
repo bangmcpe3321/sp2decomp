@@ -93,10 +93,16 @@ function calleesOf(abs) {
   for (let p = abs; p + 4n <= end; p += 4n) {
     const w = u32(p);
     if (w === null) break;
-    if ((w & 0xfc000000) >>> 0 === 0x94000000) {
+    const op = (w & 0xfc000000) >>> 0;
+    if (op === 0x94000000 || op === 0x14000000) {
       let imm = w & 0x03ffffff;
       if (imm & 0x02000000) imm -= 0x04000000;
-      out.push({ at: p, to: p + BigInt(imm * 4) });
+      const t = p + BigInt(imm * 4);
+      // A BL is always a call. An unconditional B is a tail call ONLY when it
+      // lands on a symbol start; otherwise it is an intra-function branch and
+      // must not be treated as a separate function.
+      if (op === 0x14000000 && !nameAt.has(t)) continue;
+      out.push({ at: p, to: t });
     }
   }
   return out;
@@ -138,9 +144,19 @@ for (const abs of depth.keys()) {
 }
 
 // --- select platform functions -------------------------------------------
-// nn:: / nv / NVN / nvn / nifm entries that the closure actually calls.
-const isPlatform = (name) =>
-  /^_ZN2nn/.test(name) || /^nvn|^nv[A-Z]|nvnBootstrap|nvnLoad/.test(name) || /^_ZN2nn2vi/.test(name);
+// Namespaces that belong to the platform layer rather than the engine.
+// Matched against the demangled name; an explicit prefix list avoids the brittle
+// regex that previously dropped nv:: entries.
+const PLATFORM_PREFIXES = [
+  "nn::init::", "nn::os::", "nn::mem::", "nn::oe::", "nn::time::", "nn::diag::",
+  "nn::util::", "nn::nifm::", "nn::fs::", "nn::vi::", "nn::gfx::", "nn::hid::",
+  "nn::audio::", "nn::account::", "nn::applet::", "nn::socket::", "nn::nvn::",
+  "nv::", "nvn",
+];
+const isPlatform = (name) => {
+  const dm = demangle(name);
+  return PLATFORM_PREFIXES.some((p) => dm.startsWith(p));
+};
 
 const platform = [];
 for (const [abs, dep] of depth.entries()) {
@@ -153,7 +169,11 @@ platform.sort((a, c) => a.dep - c.dep || a.dm.localeCompare(c.dm));
 
 // --- group ---------------------------------------------------------------
 const groupOf = (dm) => {
-  const m = /^(nn::[a-z0-9_]+|nv|nvn)/.exec(dm);
+  if (/^nvn/.test(dm)) return "nvn";
+  if (/^nv::/.test(dm)) return "nv";
+  if (/^nn::mem::/.test(dm)) return "nn::mem";
+  if (/^nn::os::/.test(dm)) return "nn::os";
+  const m = /^(nn::[a-z0-9_]+)/.exec(dm);
   return m ? m[1] : "other";
 };
 const groups = new Map();
