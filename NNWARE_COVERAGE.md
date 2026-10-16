@@ -136,6 +136,14 @@ Consolidating all dependency assessments in this repository:
 with no reference at all), and the Switch-specific `sead`/`gfx` glue that has
 headers but no implementations.**
 
+> **Correction.** The claim that `agl` has "no reference at all" was wrong.
+> [open-ead/agl](https://github.com/open-ead/agl) is a six-year-old, actively
+> maintained decompilation of `agl` whose declared classes match this binary
+> closely. See **[AGL_COVERAGE.md](AGL_COVERAGE.md)**. The remaining distinction is
+> between *implemented* (`agl` parameter utils and shader archive) and
+> *header-documented* (the `agl` renderer and post-effects) — not present versus
+> absent.
+
 ---
 
 ## 4. Practical recommendations

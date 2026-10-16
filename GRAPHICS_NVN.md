@@ -161,6 +161,13 @@ the GPU stack can be stood up from references rather than reconstructed blind.
 **The unbounded-looking part is now precisely bounded to one component: `agl`,
 at 2,852 functions with no public reference.**
 
+> **Correction.** That was wrong — `agl` **does** have a public reference.
+> [open-ead/agl](https://github.com/open-ead/agl) is a six-year-old, actively
+> maintained decompilation covering `agl`'s graphics, lighting and AAMP parameter
+> layers, with its declared classes matching this binary closely. See
+> **[AGL_COVERAGE.md](AGL_COVERAGE.md)**. Every major layer of the port now has at
+> least a header-level reference.
+
 Two things to settle before writing code: **the missing licenses** (all three
 `open-ead` repositories have none, and `nnware` additionally disclaims
 non-decompilation use), and **whether the nnsdk/nnware header structs match this
