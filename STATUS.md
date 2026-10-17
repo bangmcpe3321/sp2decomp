@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_INIT_OFFSET.md](RECOMP_INIT_OFFSET.md)** - the sdk+30 fault ROOT CAUSED and fixed: hardcoded kDtInit=0x30 vs Splatoon 2's _init+0x24. Boot now advances past module init.
 - **[RECOMP_BASES_FIXED.md](RECOMP_BASES_FIXED.md)** - base collision fixed (64 MB stride); all 34 unresolved imports enumerated (24 are harmless ELF markers, 9 are glslc*).
 - **[RECOMP_GUEST_EXECUTES.md](RECOMP_GUEST_EXECUTES.md)** - **THE MILESTONE**: Splatoon 2 entered nnMain and executed its own engine code. Then hit a module base collision.
 - **[RECOMP_RUNS.md](RECOMP_RUNS.md)** - **it LINKS and RUNS**: 140 MB binary, 271,917 relocations applied, 16,903 symbols linked, stops on ONE missing entry point.
