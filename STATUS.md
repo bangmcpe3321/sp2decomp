@@ -88,6 +88,8 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_LIST_CYCLE.md](RECOMP_LIST_CYCLE.md)** - the cycle CONFIRMED by memory: a list node whose 
+ext points to itself; the loop re-reads an unchanging pointer.
 - **[RECOMP_SPIN_NAMED.md](RECOMP_SPIN_NAMED.md)** - with gdb installed, the spin is NAMED: 
 n::nex::PseudoGlobalVariableList::AddVariable looping on a list.
 - **[RECOMP_SPIN_DIAGNOSED.md](RECOMP_SPIN_DIAGNOSED.md)** - the hang is a SPIN (state R, wchan 0); allocator exhaustion DISPROVED at 512 MB; two worker threads asleep.
