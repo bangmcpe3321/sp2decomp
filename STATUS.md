@@ -88,6 +88,8 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_PROTO_NOT_BETTER.md](RECOMP_PROTO_NOT_BETTER.md)** - **decisive negative**: the proto's static-init graph is IDENTICAL to retail (202 vs 202 PGV types, 121 vs 121 
+nos*). Switching builds buys nothing.
 - **[RECOMP_PROTO_AND_HEAP.md](RECOMP_PROTO_AND_HEAP.md)** - March-2017 proto extracted (SDK 0.12.17.0, 7 modules, shifted numbering, debug menu); NPDM shows `svcSetHeapSize` is the real memory mechanism and it is **never called** (0x). Heap moved into guest space -- **principled, but the hang is unchanged**.
 - **[RECOMP_FINAL_R12.md](RECOMP_FINAL_R12.md)** - **FINAL**: the recompilation-defect hypothesis is **REFUTED** (cursor != x19); cmp x0,x19 is a **duplicate-registration check**; the recompiler is **cleared** at this site. Full 12-round summary + the one open question.
 - **[RECOMP_MISSING_CMP.md](RECOMP_MISSING_CMP.md)** - **MEASURED DISCREPANCY**: the guest AddVariable has 2 register compares; the recompiled one has only 2 compares, both against zero. Possible **recompilation defect** -- falsifiable by one register read.
