@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_GETNEXT_MECHANISM.md](RECOMP_GETNEXT_MECHANISM.md)** - mechanism identified: the node is in **.bss** (zero at load) so its self-pointer was WRITTEN AT RUNTIME; `GetNext()`/`SetNext()` exist and the walk advances on `GetNext()`.
 - **[RECOMP_PGV_CTOR.md](RECOMP_PGV_CTOR.md)** - the ctor DOES initialise the node; BOTH round-13 candidates eliminated. The bad node predates this call and is a different object.
 - **[RECOMP_ADDVARIABLE.md](RECOMP_ADDVARIABLE.md)** - `AddVariable` IS the spinning function; its empty-list branch is CORRECT, eliminating self-linking. Defect narrowed to node initialisation.
 - **[RECOMP_EXIT_CONDITION.md](RECOMP_EXIT_CONDITION.md)** - the EXIT CONDITION read: the walk stops when a callee returns null; the node's `next` is itself, so null never comes. Resolves round 12's fork.
