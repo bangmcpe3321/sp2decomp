@@ -88,6 +88,8 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_NNOS_INITIALIZE.md](RECOMP_NNOS_INITIALIZE.md)** - SDK init FOUND and running: Splatoon 2 is the old nnos* era, 
+nosInitialize was the missing piece. Boot advances far past _init.
 - **[RECOMP_FAULT_LOCATED.md](RECOMP_FAULT_LOCATED.md)** - the SIGSEGV LOCATED: 
 n::os::LockMutex+0x48 on uninitialised state. The entry bypasses SDK system init.
 - **[RECOMP_INIT_OFFSET.md](RECOMP_INIT_OFFSET.md)** - the sdk+30 fault ROOT CAUSED and fixed: hardcoded kDtInit=0x30 vs Splatoon 2's _init+0x24. Boot now advances past module init.
