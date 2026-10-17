@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_SYSINFO_RULED_OUT.md](RECOMP_SYSINFO_RULED_OUT.md)** - all 10 `svcGetInfo` types logged: type 16 is **never queried**, so `system_resource_size` (my `0x0` field) is **ELIMINATED**. The guess would have cost a round; the measurement cost one rebuild.
 - **[RECOMP_HEAPMGR_ZERO.md](RECOMP_HEAPMGR_ZERO.md)** - the post-`nnMain` blocker identified: the game calls `HeapMgr::initialize(size=0x0)`, so `createRootHeap_` never runs and `getCurrentHeap()` faults. Leading cause: a memory query returning 0.
 - **[RECOMP_NNMAIN_REACHED.md](RECOMP_NNMAIN_REACHED.md)** - ? **
 nMain IS REACHED** ? The game's own Lp::Sys::SysInit::Init runs and gets to sead::GameFrameworkNx::initialize. New blocker: sead::HeapMgr::getCurrentHeap() has no heap. **The goal's primary target is achieved.**
