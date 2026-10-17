@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_CHAIN_CORRECTION.md](RECOMP_CHAIN_CORRECTION.md)** - CORRECTIONS: the list head is NOT the node (round 3 retracted); `call_preserving` hooks MISS direct recompiled calls; `+0x2fc75b0` is not a count.
 - **[RECOMP_DUPLICATE_REGISTRATION.md](RECOMP_DUPLICATE_REGISTRATION.md)** - root cause hypothesis: DUPLICATE REGISTRATION makes `tail->SetNext(new_node)` link a node to itself. `SetNext` writes +8, confirmed. Also retracts my round-2 overlap worry.
 - **[RECOMP_GETNEXT_PROVEN.md](RECOMP_GETNEXT_PROVEN.md)** - mechanism FULLY PROVEN: vtable slot +0x28 resolves to `GetNext()`, which is literally `return *(this+8)`, and that field is the node itself. Bad node is `PseudoGlobalVariable<SendMultiParameter>`.
 - **[RECOMP_GETNEXT_MECHANISM.md](RECOMP_GETNEXT_MECHANISM.md)** - mechanism identified: the node is in **.bss** (zero at load) so its self-pointer was WRITTEN AT RUNTIME; `GetNext()`/`SetNext()` exist and the walk advances on `GetNext()`.
