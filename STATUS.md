@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_LINK_RESULT.md](RECOMP_LINK_RESULT.md)** - **31 symbols from a binary**: 516/516 TUs compile, and only 26 platform functions + 5 glue are missing. Zero HLE, zero NVN.
 - **[RECOMP_FIRST_EXECUTION.md](RECOMP_FIRST_EXECUTION.md)** - **first EXECUTION**: recompiled Splatoon 2 guest code runs on the host (nzcv/SP/x19 prove real work).
 - **[RECOMP_MODULE_LIMIT.md](RECOMP_MODULE_LIMIT.md)** - the first genuine incompatibility found: g_fast[4] vs Splatoon 2's 6 modules. Confirmed, narrow, one line to fix.
 - **[RECOMP_RESOLVER.md](RECOMP_RESOLVER.md)** - the deciding question answered: the indirect-branch table is GENERATED per game, and Splatoon 2's is complete (114,928/114,928).
