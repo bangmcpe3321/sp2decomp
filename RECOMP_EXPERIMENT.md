@@ -103,6 +103,35 @@ several of them independently agree with findings from this project's authors. B
 **engine layer** â€” the 113,000 functions that made up the mountain â€” is now a solved problem by a
 different method.
 
+## 5b. The whole CPU side: sdk + all four subsdk modules
+
+After `main`, the remaining modules were recompiled the same way, each with a distinct
+`--base` (Wonder's convention: a 0x1000000 stride from `main`'s `0x7100000000`).
+
+| Module | Input | Functions | Instructions handled | Unhandled | Unresolved `br` | Time | Output |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `main` | 22.6 MB | 114,928 | 5,264,395 | **0** | 6,355 | 2 m 14 s | 486 MB |
+| `sdk` | 2.89 MB | 19,322 | 735,237 | **0** | 368 | 20 s | 65 MB |
+| `subsdk0` | 787 KB | 5,034 | 188,055 | **0** | — | 5 s | 17 MB |
+| `subsdk1` | 67 KB | 582 | 14,440 | **0** | — | <1 s | 1.4 MB |
+| `subsdk2` | 49 KB | 105 | 10,755 | **0** | — | <1 s | 944 KB |
+| `subsdk3` | 174 KB | 928 | 43,238 | **0** | — | 1 s | 3.5 MB |
+| **TOTAL** | — | **140,899** | **6,256,120** | **0** | — | **~2 m 40 s** | **~574 MB** |
+
+**Zero unhandled instructions across every module in the game.** The `sdk` output also passes the
+same compile check (`g++ -fsyntax-only`): 5 of 5 sampled units OK.
+
+Bases used, which are **conventions rather than established load addresses**:
+`main` 0x7100000000, `sdk` 0x7101000000, `subsdk0` 0x7102000000, `subsdk1` 0x7104000000,
+`subsdk2` 0x7106000000, `subsdk3` 0x7108000000. The base affects how absolute addresses are
+*represented*, not how instructions decode — and since recompiled functions are called by name,
+the ranges need only be distinct, not contiguous. Wonder's own choice (`main` 0x4000000000,
+`sdk` 0x4010000000, a 16 MB gap despite `main` being far larger) shows the same thing.
+
+**The `sdk` segment table is also a useful sanity check** — its NSO header reports a module span of
+0x765000 (7.4 MB), and 19,322 functions in 735,237 instructions is consistent with a module that
+size at this code density.
+
 ## 6. What is NOT established
 
 - **It does not run.** This proves the code *generates* and *compiles*, not that Splatoon 2 boots.
