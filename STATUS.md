@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_AARCH64_EXIT.md](RECOMP_AARCH64_EXIT.md)** - real guest code read: `SetNext(node, nullptr)` is explicit, so the list is **NULL-TERMINATED**; the circular reading is WEAKENED and the recompilation-defect hypothesis DISPROVED. Also: `exefs/main` is LZ4 -- never read it at computed offsets.
 - **[RECOMP_SECOND_REG_CTOR.md](RECOMP_SECOND_REG_CTOR.md)** - backtrace: the second registration comes from a LEGITIMATE `init_array` ctor (#1364). Port does not double-run. **Promotes the CIRCULAR-LIST reading to leading** -- the exit test compares to literal 0.
 - **[RECOMP_DUPLICATE_PROVEN.md](RECOMP_DUPLICATE_PROVEN.md)** - **duplicate registration PROVEN by gdb**: 0x710304fb90 registered TWICE (second one closes the chain into a cycle). init_array is CLEAN (1604 entries, 0 dups), so the cause is elsewhere. Also retracts round 5's broken-chain claim.
 - **[RECOMP_CURSOR_RESOLVED.md](RECOMP_CURSOR_RESOLVED.md)** - RESOLVED: the cursor is guest x20 = 0x710304fb90, so **round 2 STANDS** and round 5's head claim is retracted. New fact: the object being registered is a DIFFERENT one (0x7103650210), so the self-link PRE-EXISTED this call.
