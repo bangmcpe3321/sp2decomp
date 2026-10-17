@@ -88,6 +88,8 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_SPIN_NAMED.md](RECOMP_SPIN_NAMED.md)** - with gdb installed, the spin is NAMED: 
+n::nex::PseudoGlobalVariableList::AddVariable looping on a list.
 - **[RECOMP_SPIN_DIAGNOSED.md](RECOMP_SPIN_DIAGNOSED.md)** - the hang is a SPIN (state R, wchan 0); allocator exhaustion DISPROVED at 512 MB; two worker threads asleep.
 - **[RECOMP_HANG_LOCATED.md](RECOMP_HANG_LOCATED.md)** - a 10-minute run proves round 9 was a HANG, not slowness, and locates it: 
 n::nex::PseudoGlobalVariable<StreamSettings> ctor, main's #1367.
