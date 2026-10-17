@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_DUPLICATE_PROVEN.md](RECOMP_DUPLICATE_PROVEN.md)** - **duplicate registration PROVEN by gdb**: 0x710304fb90 registered TWICE (second one closes the chain into a cycle). init_array is CLEAN (1604 entries, 0 dups), so the cause is elsewhere. Also retracts round 5's broken-chain claim.
 - **[RECOMP_CURSOR_RESOLVED.md](RECOMP_CURSOR_RESOLVED.md)** - RESOLVED: the cursor is guest x20 = 0x710304fb90, so **round 2 STANDS** and round 5's head claim is retracted. New fact: the object being registered is a DIFFERENT one (0x7103650210), so the self-link PRE-EXISTED this call.
 - **[RECOMP_CHAIN_BROKEN.md](RECOMP_CHAIN_BROKEN.md)** - the chain does NOT walk (`next = 0x3d`, not a pointer); the real PGV list head is not located and round 2's pointer path is put IN DOUBT.
 - **[RECOMP_CHAIN_CORRECTION.md](RECOMP_CHAIN_CORRECTION.md)** - CORRECTIONS: the list head is NOT the node (round 3 retracted); `call_preserving` hooks MISS direct recompiled calls; `+0x2fc75b0` is not a count.
