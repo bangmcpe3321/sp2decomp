@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_INIT_STATUS.md](RECOMP_INIT_STATUS.md)** - 74 SDK constructors were being SILENTLY SKIPPED (init_status 2 vs 1). Fixed; all 74 run. Fourth Wonder-vs-Splatoon-2 constant.
 - **[RECOMP_NNOS_INITIALIZE.md](RECOMP_NNOS_INITIALIZE.md)** - SDK init FOUND and running: Splatoon 2 is the old nnos* era, 
 nosInitialize was the missing piece. Boot advances far past _init.
 - **[RECOMP_FAULT_LOCATED.md](RECOMP_FAULT_LOCATED.md)** - the SIGSEGV LOCATED: 
