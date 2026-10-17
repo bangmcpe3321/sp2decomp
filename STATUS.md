@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_HEAP_SIZE_NOT_ENOUGH.md](RECOMP_HEAP_SIZE_NOT_ENOUGH.md)** - the measured 3218 MB heap was **applied and the fault is IDENTICAL** -> the size was never the blocker. Also **RETRACTS** the `sdk+0x86868` caller claim (`bl` targets elsewhere).
 - **[RECOMP_HEAP_SIZE_MEASURED.md](RECOMP_HEAP_SIZE_MEASURED.md)** - **THE REAL HEAP SIZE IS MEASURED**: `0xC9200000` = **3218 MB**, caller `sdk+0x86868`. The port gave 512 MB. Size derives from `TotalMemoryAvailable - 67 MB`, using a value the port already returns.
 - **[RECOMP_RYUJINX_GDB.md](RECOMP_RYUJINX_GDB.md)** - **ground truth**: attached gdb to the real game in Ryujinx via a **reverse bridge** (defeats WSL->Windows inbound block without admin). **`sdk_base = 0xbdd2000` verified two ways**, `svcSetHeapSize = 0xbe70660`. Static offsets confirmed against the live module.
 - **[RECOMP_STARTUP_SEQUENCE.md](RECOMP_STARTUP_SEQUENCE.md)** - **the real start-up, read**: entry is `main+0x24` after the MOD0 header; `main` has **ZERO** SVCs; `sdk` has a 1:1 stub table with `svcSetHeapSize` at **`sdk+0x9e660`**; `rtld` does **no** heap setup. The remaining question is one lookup: **who calls that stub**.
