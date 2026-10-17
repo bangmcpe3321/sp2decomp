@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_FINAL_R12.md](RECOMP_FINAL_R12.md)** - **FINAL**: the recompilation-defect hypothesis is **REFUTED** (cursor != x19); cmp x0,x19 is a **duplicate-registration check**; the recompiler is **cleared** at this site. Full 12-round summary + the one open question.
 - **[RECOMP_MISSING_CMP.md](RECOMP_MISSING_CMP.md)** - **MEASURED DISCREPANCY**: the guest AddVariable has 2 register compares; the recompiled one has only 2 compares, both against zero. Possible **recompilation defect** -- falsifiable by one register read.
 - **[RECOMP_TWO_EXIT_TESTS.md](RECOMP_TWO_EXIT_TESTS.md)** - **the guest has TWO exit tests** (cmp x0,x19 + cbz x0); the recompiled loop shows only the zero test. Either a **recompilation defect** or my mapping is incomplete -- NOT yet distinguished.
 - **[RECOMP_AARCH64_EXIT.md](RECOMP_AARCH64_EXIT.md)** - real guest code read: `SetNext(node, nullptr)` is explicit, so the list is **NULL-TERMINATED**; the circular reading is WEAKENED and the recompilation-defect hypothesis DISPROVED. Also: `exefs/main` is LZ4 -- never read it at computed offsets.
