@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_HEAPMGR_ZERO.md](RECOMP_HEAPMGR_ZERO.md)** - the post-`nnMain` blocker identified: the game calls `HeapMgr::initialize(size=0x0)`, so `createRootHeap_` never runs and `getCurrentHeap()` faults. Leading cause: a memory query returning 0.
 - **[RECOMP_NNMAIN_REACHED.md](RECOMP_NNMAIN_REACHED.md)** - ? **
 nMain IS REACHED** ? The game's own Lp::Sys::SysInit::Init runs and gets to sead::GameFrameworkNx::initialize. New blocker: sead::HeapMgr::getCurrentHeap() has no heap. **The goal's primary target is achieved.**
 - **[RECOMP_DOUBLE_CTOR_ROOT_CAUSE.md](RECOMP_DOUBLE_CTOR_ROOT_CAUSE.md)** - **ROOT CAUSE FOUND**: `init_module` ran every constructor TWICE (`_init` + the `init_array` loop), which produced the duplicate PGV registration and the self-link. **PGV hang FIXED**; failure moved to `sead::ExpHeap::tryCreate`.
