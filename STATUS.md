@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_EXIT_CONDITION.md](RECOMP_EXIT_CONDITION.md)** - the EXIT CONDITION read: the walk stops when a callee returns null; the node's `next` is itself, so null never comes. Resolves round 12's fork.
 - **[RECOMP_LIST_CYCLE.md](RECOMP_LIST_CYCLE.md)** - the cycle CONFIRMED by memory: a list node whose 
 ext points to itself; the loop re-reads an unchanging pointer.
 - **[RECOMP_SPIN_NAMED.md](RECOMP_SPIN_NAMED.md)** - with gdb installed, the spin is NAMED: 
