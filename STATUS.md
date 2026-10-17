@@ -88,6 +88,8 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_HANG_LOCATED.md](RECOMP_HANG_LOCATED.md)** - a 10-minute run proves round 9 was a HANG, not slowness, and locates it: 
+n::nex::PseudoGlobalVariable<StreamSettings> ctor, main's #1367.
 - **[RECOMP_ALLOCATOR.md](RECOMP_ALLOCATOR.md)** - **the allocator was never installed**; every 
 ew returned null. Fixed: 1,368 main constructors now run and the process NO LONGER CRASHES.
 - **[RECOMP_INIT_STATUS.md](RECOMP_INIT_STATUS.md)** - 74 SDK constructors were being SILENTLY SKIPPED (init_status 2 vs 1). Fixed; all 74 run. Fourth Wonder-vs-Splatoon-2 constant.
