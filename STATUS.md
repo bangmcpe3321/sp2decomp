@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_GUEST_EXECUTES.md](RECOMP_GUEST_EXECUTES.md)** - **THE MILESTONE**: Splatoon 2 entered nnMain and executed its own engine code. Then hit a module base collision.
 - **[RECOMP_RUNS.md](RECOMP_RUNS.md)** - **it LINKS and RUNS**: 140 MB binary, 271,917 relocations applied, 16,903 symbols linked, stops on ONE missing entry point.
 - **[RECOMP_LINK_RESULT.md](RECOMP_LINK_RESULT.md)** - **31 symbols from a binary**: 516/516 TUs compile, and only 26 platform functions + 5 glue are missing. Zero HLE, zero NVN.
 - **[RECOMP_FIRST_EXECUTION.md](RECOMP_FIRST_EXECUTION.md)** - **first EXECUTION**: recompiled Splatoon 2 guest code runs on the host (nzcv/SP/x19 prove real work).
