@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_MODULE_LIMIT.md](RECOMP_MODULE_LIMIT.md)** - the first genuine incompatibility found: g_fast[4] vs Splatoon 2's 6 modules. Confirmed, narrow, one line to fix.
 - **[RECOMP_RESOLVER.md](RECOMP_RESOLVER.md)** - the deciding question answered: the indirect-branch table is GENERATED per game, and Splatoon 2's is complete (114,928/114,928).
 - **[RECOMP_EXTERNALS.md](RECOMP_EXTERNALS.md)** - the generated code needs ~40 nx:: helpers and memcpy. Nothing else. (Also corrects the indirect-branch worry.)
 - **[RECOMP_EXPERIMENT.md](RECOMP_EXPERIMENT.md)** - **the decisive result**: the MIT recompiler recovered Splatoon 2's 114,928 functions with ZERO unhandled instructions in 2m14s.
