@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_BOOTSTRAP_CIRCULAR.md](RECOMP_BOOTSTRAP_CIRCULAR.md)** - the arena was chased: IDisposer(heap=null) faults because **a heap is needed to create the first heap**. This is a **circular bootstrap dependency**, not a bug — the experimental method is exhausted; what remains is a build task.
 - **[RECOMP_ONE_INPUT_REFUTED.md](RECOMP_ONE_INPUT_REFUTED.md)** - the one-input hypothesis is **REFUTED**: supplying a size moves the fault to `sead::Heap::Heap` (null arena). This is a **multi-step framework bootstrap**, not a missing number.
 - **[RECOMP_ZERO_SOURCE.md](RECOMP_ZERO_SOURCE.md)** - the zero is TRACED: `Framework::initialize` receives an `InitializeArg` whose two size fields are **both zero** (`+102`..`+141`). One defect, two symptoms.
 - **[RECOMP_SYSINFO_RULED_OUT.md](RECOMP_SYSINFO_RULED_OUT.md)** - all 10 `svcGetInfo` types logged: type 16 is **never queried**, so `system_resource_size` (my `0x0` field) is **ELIMINATED**. The guess would have cost a round; the measurement cost one rebuild.
