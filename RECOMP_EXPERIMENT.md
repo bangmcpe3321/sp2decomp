@@ -73,7 +73,13 @@ report's `handled 5264395, unhandled 0` counts *instructions it decoded*; these 
 that are **not instructions at all** â€” padding and pointer data that a linear sweep sees as code.
 **The recompiler is not missing anything; it is correctly declining to invent code for data.**
 
-## 4. The real limitation: 6,355 unresolved indirect tail calls
+## 4. The indirect tail calls are handled — see RECOMP_EXTERNALS.md
+
+> **CORRECTED.** This section originally said the 6,355 unresolved `br` were a gap for which "a
+> dispatcher is needed". It already exists: the recompiler emits `nx::call(c, target)` for every
+> indirect branch, and resolves jump tables into `switch` statements with `nx::call` as the
+> fallback. The measurement is in [RECOMP_EXTERNALS.md](RECOMP_EXTERNALS.md) §3. Original text kept
+> below for the record.
 
 This is the one genuine gap, and it is a known, first-class problem in static recompilation:
 indirect branches (`br xN`) whose targets cannot be resolved statically. Every recompiler in this

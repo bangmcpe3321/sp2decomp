@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_EXTERNALS.md](RECOMP_EXTERNALS.md)** - the generated code needs ~40 nx:: helpers and memcpy. Nothing else. (Also corrects the indirect-branch worry.)
 - **[RECOMP_EXPERIMENT.md](RECOMP_EXPERIMENT.md)** - **the decisive result**: the MIT recompiler recovered Splatoon 2's 114,928 functions with ZERO unhandled instructions in 2m14s.
 - **[RECOMP_ASSESSMENT.md](RECOMP_ASSESSMENT.md)** - a WORKING MIT-licensed static recompiler and NVN-over-Vulkan runtime for a Switch game. The strategic comparison this port has been missing.
 - **[IMGUI_NVN_ASSESSMENT.md](IMGUI_NVN_ASSESSMENT.md)** - an external NVN overlay assessed: GPL-2.0, ships its NVN renderer as a BINARY, and hooks an already-created device.
