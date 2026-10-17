@@ -88,6 +88,7 @@ These are the documents a port is actually written against:
 
 ### 5. The engine reconstruction
 
+- **[RECOMP_BOOTSTRAP_3OF5.md](RECOMP_BOOTSTRAP_3OF5.md)** - the four steps IMPLEMENTED: **1/5 lock ?, 2/5 arena ?, 3/5 root heap ?** (`0x5001000000`). Fault now only at 4/5 `setCurrentHeap_` because `HeapMgr::sInstance` is null.
 - **[RECOMP_BOOTSTRAP_SHAPE.md](RECOMP_BOOTSTRAP_SHAPE.md)** - the bootstrap shape, read: `HeapMgr::initialize(size)` starts with **`CriticalSection::lock()`**, then `Arena::initialize(size)`. **Nothing is allocated before the lock** -- so the sequence is lock -> arena -> heap -> install. `initializeImpl_` was not in this path (explains its `(nil)` fault).
 - **[RECOMP_NO_PARENT_HEAP.md](RECOMP_NO_PARENT_HEAP.md)** - **first working heap creation**: `ExpHeap::tryCreate(buf,size,name,bool)` -- the **4-arg NO-PARENT overload** -- returns a real root heap (`0x5001000000`). Bootstrap now one layer deeper: `HeapMgr::sInstance` does not exist.
 - **[RECOMP_HEAP_SIZE_NOT_ENOUGH.md](RECOMP_HEAP_SIZE_NOT_ENOUGH.md)** - the measured 3218 MB heap was **applied and the fault is IDENTICAL** -> the size was never the blocker. Also **RETRACTS** the `sdk+0x86868` caller claim (`bl` targets elsewhere).
