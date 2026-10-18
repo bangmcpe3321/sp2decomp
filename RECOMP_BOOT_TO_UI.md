@@ -66,27 +66,44 @@ and `Lp::Utl::decompCompRes` then does `new[](0xe320, heap, 0x2000)`.
 At the failure (gdb: `break SZSDecompressor::decomp if x0 == 0`):
 
 * `heap` = `0x50c1ff0c70`, vtable `0x7102f65770` (`Lp::UI::Impl::DualHeap`),
-  `[heap+0x108] = 0`.
-* `DualHeap::tryAlloc` → `Context::tryAlloc` returns 0: the heap has no
-  context/adapter (`[ctx+0x20]`, i.e. `[heap+0x128]`, is the null "current chunk").
-* `DualHeap::create(...)` is called many times, but always with an adapter chosen
-  per layout; the accessor's heap is never re-created after the point where its
-  `+0x108`/`+0x128` are zero.
-* `DualHeap::destroy()` does **not** clear `+0x108`, so the object was either
-  created without the `create()` path or `create` bailed before setting it.
-* File being decompressed: `content:/Layout/GearIcon_00.Nin_NX_NVN.szs`
-  (3,349,568 bytes compressed, `0xe305` decompressed).
+  `[heap+0x108]` = its adapter `0x50c160cfb8` (`Lp::UI::Impl::DualHeapAdapter`),
+  `[heap+0x128]` = its current chunk `0x50c1ff1040`.
+* The adapter's parent heap is `0x50c160ce88`, a `sead::ExpHeap` of
+  **10,432,888 bytes** (0x9f3178).
+* That page heap is the *Plaza page's sub-heap*, created by
+  `Lp::UI::UIMgr::prepare` → `Cstm::UIMgrCstm::onPrepare` →
+  `Cui::SystemPageMgr::initialize` → `createHandler<SysPlazaPageHandler>` →
+  `Cui::PageHandler::load` → `Lp::UI::PageHolder::beginCreateSub(name)` →
+  `sead::ExpHeap::create(size = 0, …, parent = the UI heap)`.
+  `size = 0` means "take all remaining space of the parent".
+* The UI heap (`0x50c011afe8`) is **32,395,288 bytes** and at that moment is
+  fully divided among three live page heaps: 1,634,712 (page 1),
+  20,325,536 (page 2) and the Plaza page 10,432,888.
+* Inside the Plaza page heap at the failure: **free = 61,160 bytes in one
+  block** (at `0x50c1ff1060`), used = 10,371,728.
+* The failing request is `new[](0xe320, heap, align 0x2000)` (58,144 bytes).
+  Aligning the free block to 0x2000 wastes 3,968 bytes and the block header
+  adds ~0x30, so ~62,200 bytes are needed: **the allocation is ~1 KB short.**
+* The compressing source pointer is not the file start; the SZS being
+  decompressed is an entry of the Layout archive (`GearIcon_00`), decompressed
+  size `0xe305`. (The 3.3 MB `GearIcon_00.Nin_NX_NVN.szs` file on disk is
+  itself a Yaz0-wrapped SARC that expands to 6,279,304 bytes.)
+
+Interpretation: the game's own UI memory budget is extremely tight here — the
+port is within ~1 KB of what the page heap can hold. The remaining delta is an
+allocation-layout difference in the UI page (a few kilobytes over 10 MB), not a
+wrong heap or a wrong size.
 
 Next steps:
 
-1. Break on `LayoutResourceMgr::beginCreate` (main+0x125abac) and
-   `DualHeapAdapter::create` (main+0x12d30c8) to see whether the accessor's heap
-   is ever created and with which sizes.
-2. Inspect the accessor (`x19` in `loadImpl`) at `loadResDecompHeap`:
-   `[accessor+0x98]` and its nested adapter (`[accessor+0x48]` region).
-3. If the accessor's heap is meant to be created lazily, check whether the
-   preceding `LayoutResourceMgr` call was skipped (e.g. an archive file missing
-   from the romfs, so the fallback path built a plain `DualHeap`).
+1. Compare the page's allocations against a console reference if one becomes
+   available; otherwise look for a port-side allocation that is a few KB larger
+   than the console's (e.g. buffer rounding in the `fs` reads, or a texture
+   object retained by the NVN HLE).
+2. Check whether the missing translated shaders (`private/spirv/*.spv`) change
+   any guest-side allocation (a fallback path could retain a buffer).
+3. A targeted mitigation, if the delta is confirmed port-side: make the
+   affected HLE allocation smaller so the page heap regains the ~1 KB.
 
 ## Runtime services implemented for this title
 
