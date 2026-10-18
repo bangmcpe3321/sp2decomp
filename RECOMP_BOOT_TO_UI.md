@@ -94,28 +94,38 @@ port is within ~1 KB of what the page heap can hold. The remaining delta is an
 allocation-layout difference in the UI page (a few kilobytes over 10 MB), not a
 wrong heap or a wrong size.
 
+Measured allocation profile of the Plaza page heap (gdb breakpoint on
+`sead::ExpHeap::tryAlloc` for `this == 0x50c160ce88`):
+
+* **42,566 allocations, 9,429,558 bytes total** — all still live at the failure
+  (nothing was freed).
+* Largest blocks: 376,832 / 348,288 / 240,704 / 229,504 / 209,952 / 196,736 /
+  168,416 bytes; all from `Lp::UI::Impl::DualHeap::Context::tryAlloc`
+  (main+0x12d23d8), i.e. the game's layout decompression buffers.
+* The rest are small layout/UI nodes; the remaining ~0.9 MB of the 10.37 MB used
+  is ExpHeap block headers and rounding (0.4 % of the heap).
+
+Two experiments tried and reverted:
+
+* forwarding `GetStorageSize` to the driver's own `subsdk0+0x8c8d0` — it looks
+  device-free in the first half of `subsdk0_0008C934`, but that function also
+  calls the driver's storage-class query (`subsdk0_000862AC`), which dereferences
+  device state the port never initialises; it crashed at `subsdk0+0x8639c`.
+* returning the driver's default storage alignment (`0x200`) instead of the
+  port's `512 * block_height` — the Plaza page heap's free space did not change
+  by a byte, so textures are not placed in this heap (they use NVN memory pools).
+
 Next steps:
 
-1. **Most likely candidate:** the port's HLE `nvnTextureBuilderGetStorageSize` /
-   `GetStorageAlignment` (`runtime/src/nvn/nvn_texture_layout.cpp`) computes
-   Maxwell block-linear sizes itself (block height = smallest power of two >=
-   rows/8, capped at 16 GOBs, layer rounded up to `512 * block_height`, alignment
-   = the same block). Each texture can be up to `512 * bh - 1` bytes larger than
-   the real driver's figure, and the game allocates exactly what this proc
-   returns. A handful of page textures over-reporting by a few hundred bytes each
-   would account for the ~1 KB shortfall.
-   * **Tried:** forwarding `GetStorageSize` to the driver's own
-     `subsdk0+0x8c8d0`. It looks device-free in the first half of
-     `subsdk0_0008C934`, but that function also calls the driver's storage-class
-     query (`subsdk0_000862AC`), which dereferences device state the port never
-     initialises — it crashed at `subsdk0+0x8639c`. The change was reverted.
-     Using the driver proc therefore requires fabricating/initialising the
-     device struct first (fields at `+0x78`, `+0x1948`, `+0x194c`, `+0x8c0`…).
-2. Compare the page's allocations against a console reference if one becomes
-   available; otherwise look for any other port-side allocation that is a few KB
-   larger than the console's (buffer rounding in the `fs` reads).
-3. Check whether the missing translated shaders (`private/spirv/*.spv`) change
-   any guest-side allocation (a fallback path could retain a buffer).
+1. Match the console's allocation stream exactly: the difference is ~0.4 % of the
+   page's 9.4 MB, i.e. a few dozen KB, so a console/emulator reference of the
+   same page's heap (or of `GetStorageSize` values) would pinpoint it.
+2. Fabricate/initialise the driver's device struct (fields at `+0x78`, `+0x1948`,
+   `+0x194c`, `+0x8c0`…) so the driver's real storage-size proc becomes usable;
+   that removes any texture-size overestimate by construction.
+3. Check the 56 DualHeap creations that are never matched by a `destroy` (821 vs
+   765): if the port skips some destruction path, those chunks stay in the page
+   heap.
 
 ## Runtime services implemented for this title
 
