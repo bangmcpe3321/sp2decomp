@@ -99,13 +99,18 @@ Next steps:
 1. **Most likely candidate:** the port's HLE `nvnTextureBuilderGetStorageSize` /
    `GetStorageAlignment` (`runtime/src/nvn/nvn_texture_layout.cpp`) computes
    Maxwell block-linear sizes itself (block height = smallest power of two >=
-   rows/8, capped at 16 GOBs, layer rounded up to `512 * block_height`). Each
-   texture can be up to `512 * bh - 1` bytes larger than the real driver's
-   figure, and the game allocates exactly what this proc returns. A handful of
-   page textures over-reporting by a few hundred bytes each would account for
-   the ~1 KB shortfall. The real fix is to use the driver's own
-   `subsdk0+0x8c8d0` once its device fields (device+0x78, +0x1948/+0x194c,
-   +0x8c0+) are initialised the way `nvnDeviceInitialize` would.
+   rows/8, capped at 16 GOBs, layer rounded up to `512 * block_height`, alignment
+   = the same block). Each texture can be up to `512 * bh - 1` bytes larger than
+   the real driver's figure, and the game allocates exactly what this proc
+   returns. A handful of page textures over-reporting by a few hundred bytes each
+   would account for the ~1 KB shortfall.
+   * **Tried:** forwarding `GetStorageSize` to the driver's own
+     `subsdk0+0x8c8d0`. It looks device-free in the first half of
+     `subsdk0_0008C934`, but that function also calls the driver's storage-class
+     query (`subsdk0_000862AC`), which dereferences device state the port never
+     initialises — it crashed at `subsdk0+0x8639c`. The change was reverted.
+     Using the driver proc therefore requires fabricating/initialising the
+     device struct first (fields at `+0x78`, `+0x1948`, `+0x194c`, `+0x8c0`…).
 2. Compare the page's allocations against a console reference if one becomes
    available; otherwise look for any other port-side allocation that is a few KB
    larger than the console's (buffer rounding in the `fs` reads).
