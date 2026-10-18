@@ -78,7 +78,10 @@ At the failure (gdb: `break SZSDecompressor::decomp if x0 == 0`):
   `size = 0` means "take all remaining space of the parent".
 * The UI heap (`0x50c011afe8`) is **32,395,288 bytes** and at that moment is
   fully divided among three live page heaps: 1,634,712 (page 1),
-  20,325,536 (page 2) and the Plaza page 10,432,888.
+  20,325,536 (page 2) and the Plaza page 10,432,888. Its own parent is
+  `0x50bbb1ae78`, a `sead::ExpHeap` of **105,795,976 bytes** (of which the UI
+  heap holds all remaining space), so every level of the chain is an
+  "all remaining space" sub-heap.
 * Inside the Plaza page heap at the failure: **free = 61,160 bytes in one
   block** (at `0x50c1ff1060`), used = 10,371,728.
 * The failing request is `new[](0xe320, heap, align 0x2000)` (58,144 bytes).
