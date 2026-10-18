@@ -288,4 +288,6 @@ the first suspect; revisit after the shader translation.
 * `runtime/src/hle_fs.cpp` — `CommitSaveData`, `SetResultHandledByApplication`, `SetLocalApplicationAccessLog` HLEs.
 * `runtime/src/hle_friends.cpp` — **new**: offline presence API.
 * `runtime/src/nvn/nvn_vk.cpp` — headless init without a surface; graphics-only queue.
-* `runtime/src/nvn/nvn_texture_layout.cpp` — kept the validated block rounding (the exact driver transcription is still open).
+* `runtime/src/nvn/nvn_texture_layout.cpp` — total storage size rounded to 512 instead of a whole block
+  (the driver aligns per level and does not round the total; the exact `0x71800b45c4` transcription is
+  still open). A 120 s run with this kept the display loop alive past present #2048 with no fatal.
