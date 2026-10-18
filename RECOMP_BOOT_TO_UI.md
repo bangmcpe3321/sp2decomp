@@ -96,14 +96,21 @@ wrong heap or a wrong size.
 
 Next steps:
 
-1. Compare the page's allocations against a console reference if one becomes
-   available; otherwise look for a port-side allocation that is a few KB larger
-   than the console's (e.g. buffer rounding in the `fs` reads, or a texture
-   object retained by the NVN HLE).
-2. Check whether the missing translated shaders (`private/spirv/*.spv`) change
+1. **Most likely candidate:** the port's HLE `nvnTextureBuilderGetStorageSize` /
+   `GetStorageAlignment` (`runtime/src/nvn/nvn_texture_layout.cpp`) computes
+   Maxwell block-linear sizes itself (block height = smallest power of two >=
+   rows/8, capped at 16 GOBs, layer rounded up to `512 * block_height`). Each
+   texture can be up to `512 * bh - 1` bytes larger than the real driver's
+   figure, and the game allocates exactly what this proc returns. A handful of
+   page textures over-reporting by a few hundred bytes each would account for
+   the ~1 KB shortfall. The real fix is to use the driver's own
+   `subsdk0+0x8c8d0` once its device fields (device+0x78, +0x1948/+0x194c,
+   +0x8c0+) are initialised the way `nvnDeviceInitialize` would.
+2. Compare the page's allocations against a console reference if one becomes
+   available; otherwise look for any other port-side allocation that is a few KB
+   larger than the console's (buffer rounding in the `fs` reads).
+3. Check whether the missing translated shaders (`private/spirv/*.spv`) change
    any guest-side allocation (a fallback path could retain a buffer).
-3. A targeted mitigation, if the delta is confirmed port-side: make the
-   affected HLE allocation smaller so the page heap regains the ~1 KB.
 
 ## Runtime services implemented for this title
 
