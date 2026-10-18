@@ -130,6 +130,38 @@ Next steps:
    765): if the port skips some destruction path, those chunks stay in the page
    heap.
 
+## Driver storage-size/alignment code (Ghidra verified)
+
+Ghidra 12.1.4 + GhidraMCP + the raw-AArch64 ELF (`re-work/subsdk0.elf`, base
+`0x7180000000`, 3,175 functions) decompiled the driver chain:
+
+| Address | Function | Role |
+|---|---|---|
+| `0x718008c8d0` | `nvnTextureBuilderGetStorageSize` | builds the layout via `0x8c934`; returns 0 unless the format-table entry's bit 0 is set |
+| `0x718008c934` | layout builder | reads the format table at `DAT_718017ebd0` (`0x34` stride: `+8` block W, `+9` block H, `+0xe/+0xf` special-storage flags, `+0x10` bytes/block, `+0x2c` storage-class bits); calls `0x79e18` + `0x7a348`; **rounds the final size up to `[device+0x78]` only when `0x862ac` returns neither 0 nor 0xFE** |
+| `0x718008be98` | `nvnTextureBuilderGetStorageAlignment` | `0x80` / `0x20` for flag bits 6/4; format class 10 → bytes/block; flags `& 0x50` → `0x200`; otherwise the storage-class query, then `[device+0x78]`, else **`0x200`** |
+| `0x7180079e18` | layout fill | writes width/height/depth/levels/format/block fields into the layout struct |
+| `0x718007a348` | size call | applies sample/MSAA scaling, then calls `0x71800b45c4` |
+| `0x71800b45c4` | block-linear size math | device-free; per-level block-linear sizes with width/height/depth alignment and block-height choice |
+| `0x71800862ac` | storage-class query | calls the external GPU-driver thunk `EXT_FUN_b4d14` with `[device+8]` — unavailable in the port, which is why forwarding `GetStorageSize` to the driver crashed |
+
+Consequence: for ordinary formats the driver does **not** round the size to the
+block; the port's `compute()` rounds every texture to `512 * block_height` and
+also returns that as alignment. Transcribing `0x71800b45c4` + the layout rules of
+`0x8c934`/`0x79e18` into `nvn_texture_layout.cpp` gives exact sizes without any
+driver call, and alignment should be `0x200` for ordinary formats.
+
+## Analysis tooling (GhidraMCP)
+
+* Ghidra 12.1.4: `ghidra_12.1.4_PUBLIC_20260921/ghidra_12.1.4_PUBLIC`.
+* Extension `GhidraMCP-7.0.0` installed in `%APPDATA%\ghidra\ghidra_12.1.4_PUBLIC\Extensions\GhidraMCP` and enabled in `FrontEndTool.xml`; HTTP server on `127.0.0.1:8089` (`/check_connection`, `/mcp/schema` = 205 tools).
+* Bridge: `ghidra-mcp\venv\Scripts\bridge-mcp-ghidra.exe` (wheel 7.0.0, `mcp==1.30.0`, `pydantic 2.14.1`); registered in OpenCode as `ghidra-mcp` with `GHIDRA_MCP_URL=http://127.0.0.1:8089`.
+* `re-work/subsdk0.elf` is a one-segment ELF64/AArch64 wrapper around
+  `private/analysis/subsdk0.bin` with a `.symtab` built from
+  `gen/subsdk0/table.cpp` (the tool is `mkelf.py`); Ghidra imported it and
+  auto-analysed it.
+
+
 ## Runtime services implemented for this title
 
 | Service | Where | Notes |
