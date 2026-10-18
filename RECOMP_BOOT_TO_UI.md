@@ -182,3 +182,110 @@ driver call, and alignment should be `0x200` for ordinary formats.
 * `runtime/src/main.cpp` — `nninitInitializeSdkModule` before `nnMain`.
 * `runtime/src/hle_audio.cpp` — Splatoon 2 audio path.
 * `runtime/src/ipc.cpp` — stub command log includes the caller's `lr`.
+
+## Green boot: display loop reached (2026-10-19)
+
+`RootTask::prepare_` now completes, `Lp::UI` builds its whole page set and the
+display loop runs: **60.0 fps, 1 submit/frame, `nvn: present #N` for N = 2048+
+over a 90 s run** (a 240 s run also completed without a fatal). What that took,
+in order:
+
+### 1. UI page-set memory (the `Layout/Ticket_00` / `0x33420` failure)
+
+`Cui::SystemPageMgr::initialize` (called from `Cstm::UIMgrCstm::onPrepare`, via
+`Lp::UI::UIMgr::prepare` in `IRootTaskCstm::createVariousParts`) creates four
+page handlers — `BootPageHandler`, `CustomizePageHandler`, `SysPlazaPageHandler`,
+`SysWorldPageHandler` — and each creates a page heap with
+`sead::ExpHeap::create(size = 0)` from the UI heap (all remaining), trimmed to
+live usage after the page is built:
+
+| heap | who | size |
+|---|---|---|
+| arena (105.8 MB, all remaining) | `Lp::Sys::HeapGroup::createHeap` | `0x64E5188` |
+| `Cstm::ResMgr` | `Cstm::ResMgr::ResMgr` (`0x19CE8C`) | 50 MB (`0x3200000`) |
+| `Lp::Sys::EffectMgr` | `EffectMgr` ctor (config query, default 4 MB) | 20 MB (`0x1400000`) |
+| Cstm UI heap | `Cstm::UIMgrCstm::onPrepare` | remainder = 32.4 MB |
+| UI_Boot | `BootPageHandler` | 1,634,712 |
+| UI_Customize | `CustomizePageHandler` | 20,325,536 |
+| UI_SysPlaza | `SysPlazaPageHandler` | 12,079,704 |
+| UI_World | `SysWorldPageHandler` | 11,868,336 + second page (3.2 MB+) |
+
+The plaza page builds panes from the same heap (`LayoutAllocator::setHeap` →
+`LayoutAllocator::allocFunc`, `sead::ExpHeap::tryAlloc`): the failing request was
+a **209,952-byte DualHeap chunk** for `Layout/Ticket_00`, with only 61,160 bytes
+free. Texture storage was ruled out (changing `GetStorageSize` rounding moved
+neither the plaza free space nor its size).
+
+The layout data in this romfs (the updated one) needs ≈49 MB of page heaps,
+while the base executable's fixed budgets leave 32.4 MB for them, so the last
+page always starved. `Cstm::ResMgr` is not a safe donor: it is empty at boot
+(52,428,496 of 52,428,800 free) but `Cmn::StaticResLoader::loadStatic` later
+creates its **20 MB** static-resource heap from it, so shrinking it to 20 MB
+makes `ModelArc` receive a null resource and crash.
+
+**Fix:** `QueryMemoryInfo` now reports a **3.1 GB** sead arena instead of 3.0 GB
+(`mi[2]-mi[3] = 0xC7000000`; the process heap reserved by `svcSetHeapSize` is
+`0xC9200000`, so 32 MB + arena still fits). That is hardware-plausible for the
+4 GB Switch and gives the arena's last "all remaining" heap the ~112 MB the
+updated page data needs. With it, ResMgr keeps its real 50 MB and the static
+loader works.
+
+### 2. Save-data abort (`svcBreak` in `nn::diag`)
+
+`Cstm::SaveDataMgr::save` → `sead::NinSaveFileDevice::tryCommit` → the GOT slot
+at `0x2F9B3F0` is relocated to **`nn::fs::CommitSaveData`**, which had no HLE, so
+it fell through to the SDK implementation and the stubbed `fsp-srv` → abort.
+HLE'd `CommitSaveData` (no-op: saves are host files already),
+`SetResultHandledByApplication` and `SetLocalApplicationAccessLog`.
+Frames then advanced from #8 to #16.
+
+### 3. Friends presence crash
+
+`Lp::Net::FriendPresenceMgr::declareOnlinePlaySessionImpl` →
+`nn::friends::DeclareCloseOnlinePlaySession` → the SDK caches a null
+`IFriendService` (stubbed `friends:u`) and dereferences it. New
+`runtime/src/hle_friends.cpp` makes the whole presence API a successful no-op
+(Initialize, SetAllocator, UserPresence Initialize/SetAppValue/Commit,
+DeclareOpen/CloseOnlinePlaySession, NotificationQueue Initialize/Finalize/Pop).
+Frames advanced from #16 to #64.
+
+### 4. Headless GPU was never initialised
+
+`nvn_vk::init()` required `make_surface()`. Lavapipe's
+`vkCreateHeadlessSurfaceEXT` returns `-7`, so init failed, `g_failed` stayed set,
+and every later `gpu_present` returned before `present_headless`. The "presents"
+counted earlier were **counters only; nothing was rendered**. In headless mode
+init now continues without a surface and accepts a graphics-only queue
+(`present_headless` never uses a swapchain). The GPU now runs for real:
+`nvn/vk: per frame over 60: 60.0 fps, 1.0 submits, replay 0.17 ms`.
+
+### 5. Current blocker: untranslated shaders
+
+With real rendering:
+`nvn draws: 554522 total, 0 done, 554522 no program` — every draw is skipped
+because `private/spirv/<hash>.spv` does not exist (the port uses offline
+`Ryujinx.Graphics.Shader` translations, see `nvn_shaders.cpp`). The frame dump
+(`NX_DUMP_FRAMES`) therefore stays blank: the presented texture is never
+transitioned out of `UNDEFINED` because no draw touches it.
+
+Shader inventory captured for translation:
+`NX_DUMP_SHADER_MISSES=1` wrote **6302** `code_<hash>.bin` / `ctrl_<hash>.bin`
+pairs (82 MB) to `private/shader_misses/`. Next step: run the offline translator
+to produce `private/spirv/<hash>.spv` + `results.tsv`.
+
+### 6. Next crash behind the shaders
+
+When frames actually run, `agl::utl::DynamicTextureAllocator::alloc_`
+(`0xF05A00`) calls `dump_(0..3)` → `TextureMemoryAllocator::dumpDetail()`
+(`0xF2C2F0`) and faults at `0x8` around present #2048. That path carves dynamic
+textures using NVN storage size/alignment, so the port's `GetStorageSize`
+(today: block-rounded, and 0 when the format-table entry's bit 0 is clear) is
+the first suspect; revisit after the shader translation.
+
+### Changed files (WSL `~/sp2port`)
+
+* `runtime/src/hle_os.cpp` — arena `0xC0000000` → `0xC7000000` in `QueryMemoryInfo`.
+* `runtime/src/hle_fs.cpp` — `CommitSaveData`, `SetResultHandledByApplication`, `SetLocalApplicationAccessLog` HLEs.
+* `runtime/src/hle_friends.cpp` — **new**: offline presence API.
+* `runtime/src/nvn/nvn_vk.cpp` — headless init without a surface; graphics-only queue.
+* `runtime/src/nvn/nvn_texture_layout.cpp` — kept the validated block rounding (the exact driver transcription is still open).
