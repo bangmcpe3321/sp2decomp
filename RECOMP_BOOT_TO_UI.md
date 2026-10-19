@@ -1,14 +1,17 @@
-# Recompiled port — boot progress through UI resource loading
+# Recompiled port — green boot: display loop and real frames
 
 This is the state of the recompiled PC port (`~/sp2port`, runtime under
 `runtime/src/`) as of 2026-10-19. It is a living log: each row of the ladder was
 a real fatal, diagnosed from the guest's own stack and fixed in the runtime.
 
 The port now enters `nnMain`, initialises NVN/sead graphics, HID, settings, the
-SDK's own module init and audio, completes `RootTask::prepare_`'s early work and
-reaches **UI layout loading** (`Lp::UI::Impl`). It stops when
-`sead::SZSDecompressor::decomp` is handed a null destination because the UI
-`Lp::UI::Impl::DualHeap` cannot allocate.
+SDK's own module init and audio, completes `RootTask::prepare_`, returns from
+`sead::GameFramework::waitStartDisplayLoop_` and runs the display loop with
+**real, non-black frames**: a 150 s run presents to `#1024` with the boot tip
+carousel and the title screen on screen, no fatal, no validation error and no
+unknown-handle call. The last two blockers were a BC3 texture bound as a render
+target (host SIGFPE) and command lists dropped by the port's lifetime heuristic
+(which made every frame black); both are described below.
 
 ## Running
 
@@ -17,7 +20,12 @@ cd ~/sp2port
 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json NX_HEADLESS=1 ./sp2
 # NX_TRACE=1      verbose (svc / HLE / IPC / NVN)
 # NX_TRACE_FS=1   every file the game opens
+# NX_DUMP_FRAMES=100  write private/frames/00100.ppm, 00200.ppm, ... from the presented texture
+# NX_NO_KEEP_LISTS=1  restore the old command-list drop rule (frames go black, see below)
 ```
+
+A healthy run ends in exit 124 (the timeout), prints `nvn: present #N` throughout
+and leaves no `fault report`, no `SIGSEGV`/`SIGFPE` and no `VUID` line.
 
 The game's romfs must be reachable: `private/extract/romfs` is a symlink to the
 `romfs/` directory produced by hactool.
@@ -51,7 +59,9 @@ Every entry is a fatal that was hit and fixed during this session, in order.
 | 10 | apparent hang in `sead::GameFramework::waitStartDisplayLoop_` | `atk::HardwareManager::AttachMemoryPool` polls `nn::audio::GetMemoryPoolState() == Attached` forever (no server applies the attach request) | `hle_audio.cpp`: `GetMemoryPoolState`/`IsMemoryPoolAttached` report attached |
 | 11 | `FATAL: call to main+0x2920ff0` from `nn::audio::ListAudioDeviceName` | S2-era device API (`ListAudioDeviceName`/`GetActiveAudioDeviceName`) not HLE'd; it went through the null audren manager | `hle_audio.cpp`: HLE both (synthetic `"AudioTvOutput"`) |
 | 12 | SIGSEGV in `AcquireAudioDeviceSwitchNotification` | same manager path | `hle_audio.cpp`: HLE it (event never signalled), `GetActiveChannelCount`, renderer time-limit get/set |
-| 13 | SIGSEGV in `sead::SZSDecompressor::decomp` with `dst = 0` | `Lp::UI::Impl::DualHeap` allocation fails | **open** — see below |
+| 13 | SIGSEGV in `sead::SZSDecompressor::decomp` with `dst = 0` | `Lp::UI::Impl::DualHeap` allocation fails | **fixed** — see "UI page-set memory" below |
+| 14 | host SIGFPE (division by zero in LLVM InstCombine) inside llvmpipe during a draw | a **packaged BC3 cubemap** was bound as a colour render target: rendering into a block-compressed image is invalid (`08912`) and llvmpipe's generated store became 0 bits | `nvn/nvn_image.cpp` + `nvn/nvn_draw.cpp`: `compressed_image()` guard — a compressed colour/depth slot is handled image-less (dummy attachment) |
+| 15 | every frame black although 115k draws per 62 s ran and completed | the command-memory usage estimate saturates (`used()` clamps at `size-64`), after which every recording looks like it starts at the same byte and the overlap rule drops the previous list; Splatoon 2 records per-frame lists once and submits those handles all session, so those submits replayed nothing | `nvn/nvn_cmd.cpp`: a dropped list is kept and later submits/calls are served from the recorded copy (`NX_NO_KEEP_LISTS=1` restores the old rule) |
 
 ## Open blocker: UI DualHeap allocation
 
@@ -282,6 +292,105 @@ textures using NVN storage size/alignment, so the port's `GetStorageSize`
 (today: block-rounded, and 0 when the format-table entry's bit 0 is clear) is
 the first suspect; revisit after the shader translation.
 
+### 7. Compressed images are never attachments (host SIGFPE, `08912`)
+
+Symptom: a few seconds into the run the host process died with SIGFPE — an
+integer division by zero in LLVM's InstCombine while llvmpipe compiled a
+fragment shader's colour store — after validation had logged `08912` (a
+block-compressed attachment format).
+
+Cause: this driver's own format table (`subsdk0+0x181d70`, stride `0x34`) maps
+NVN format `0x44` to **BC3**, and the game bound a *packaged BC3 cubemap* (the
+probe) as a colour target — pass `k0:508d6f2128/137 … depth 0 fs
+b5794a5c9c2e7e4b`. `508d6f2128` is pool base `508d5e9000 + 0x21128`, a
+descriptor the game copies there itself; the port's own
+`write_texture_descriptor` magic (`4E5654584C414544`) plus the texture address at
+`+0x08` let `texture_descriptor_ref()`/`image_of()` follow it to the named
+texture. The view the game asks for (`0x2f` = R32G32B32A32_UINT) is incompatible
+and correctly ignored — the *image's* format is what reached the render pass.
+Rendering into it is invalid in Vulkan, and on llvmpipe the generated DXT5
+colour store degenerates (0 bits), which InstCombine folds into a division by
+zero.
+
+Fix: `compressed_image()` (new, in `nvn_image.cpp`) is consulted at the four
+sites that build attachments — `begin_rendering` (colour and depth) and the
+draw-path pipeline's colour formats and depth format. A compressed colour slot
+gets a dummy attachment (`attachment_dummy()` + `unused_slot_format()`) instead
+of the image, exactly like the slots that have no image at all.
+
+`NX_FORCE_BC_DECODE=1` (host-decode BC into RGBA) also avoided the crash but is
+no longer needed: real BC images are kept, which is both more faithful and 4×
+smaller.
+
+### 8. Every frame black: command lists dropped by the overlap rule
+
+Symptom: the display loop ran and `nvn draws: 115496 total, 115496 done, 0 no
+program …` over 62 s, but every 1920×1080 dump (`NX_DUMP_FRAMES`) was uniformly
+zero — one stray pixel of value 10 aside — and the mid-frame snapshots
+(`NX_SNAP_FOLLOW`) were black too, so the draws really stored nothing.
+
+A/B: two 62 s runs with nothing different but `NX_KEEP_LISTS=1`.
+
+| run | frame dumps | unknown-handle calls |
+|---|---|---|
+| no keep | `00250`…`01250.ppm`: 1 non-zero pixel, max 10 | 31 |
+| `NX_KEEP_LISTS=1` | `00250`: 79,442; `00500`: 111,004; `00750`: 111,655 (mid-frame snapshots 110k–235k) | 0 |
+
+Cause: the port models command memory with a per-command byte estimate
+(`kCommandBytes`) and `used()` **clamps** at `size-64` instead of wrapping. Past
+saturation every recording gets the same region start, so the "a newer list
+recorded over the same bytes drops the older ones" rule drops exactly one older
+list per recording (24001 drops vs 24576 lists ended in 62 s). Splatoon 2's
+engine records its per-frame lists **once** and submits those handles for the
+whole session, so each of those drops turned a live handle into "unknown:
+dropped": the submits replayed nothing and the frame's content was missing. The
+counters show it — `handles: 4666 live, 12257 queued, 15814 dropped by overlap`
+while the frame is black, and `calls served from kept (dropped) lists` once the
+lists are served again.
+
+Fix (`nvn/nvn_cmd.cpp`): a dropped list is kept in `g_kept_lists` and later
+submits and calls are served from the recorded copy. That is well defined here
+because the port's handles are its own opaque ids and a recorded list is an
+exact snapshot of the commands, so replaying it is what the engine asked for.
+The map is capped (400k entries) and the live-handle safety net still ages lists
+out by use, so memory stays bounded. `NX_NO_KEEP_LISTS=1` restores the old rule.
+
+A narrower fix — skip the drop only when the new region's start repeats itself
+(the saturated case) — removed 87 % of the drops but left the frames black and
+faulted the guest (`gsys::SystemTask::postCalc_`, exit 70), so the conservative
+route above is what the port ships.
+
+### 9. Green boot verification (150 s, `run_green2.log`)
+
+* exit 124 (timeout), `nvn: present #1024`, no `fault report`, no `SIGSEGV`/`SIGFPE`
+* 0 `VUID` lines, 0 unknown-handle calls, 139 transient stalls (all recover)
+* `per frame over 60: 11.2 fps, 1.0 submits, replay 6.08 ms, fence wait 79.74 ms, upload 6.54 MB`
+  (lavapipe; the earlier black runs looked faster only because no draw stored anything)
+* dumps every 100 frames (`NX_DUMP_FRAMES=100`): `00100`/`00200` are fully covered
+  (2,073,600 non-zero pixels, max 186/190), `00300` has 69,816, and `00400`…`01900`
+  hold a stable 110,977–111,677 non-zero pixels at max 255
+
+The frames are Splatoon 2's own UI: the diagonal green→blue ink ribbon with
+jellyfish silhouettes (title screen) and the boot tip page — lime ink splat with
+the Inkling, a blue ink blob, six page dots with the first active, and the `R`
+button prompt. The PPMs are `~/sp2port/private/frames/`.
+
+### Open items
+
+* The usage estimate still saturates; section 8 compensates after the fact. A
+  faithful `AddCommandMemory`/`GetCommandMemoryUsed` model (or the driver's real
+  per-command size) would make the overlap rule trustworthy again.
+* `g_kept_lists` only evicts by cap; evict by use instead.
+* The 11 fps come from lavapipe's fence wait (79.74 ms/frame), not the port:
+  replay is 6.08 ms.
+* Transient stalls are lock contention, not a lost wakeup:
+  `NX_TRACE_ADDR=5005ecd508` saw 1556 waits and 1552 matched signals, and the
+  waits carry ~1 s timeouts; the main thread parks in
+  `sead::DisplayBufferNvn::presentTextureAndAcquireNext`.
+* An intermittent host SIGSEGV (fault address `0xbf800000`, port code, guest LR
+  `present_+0x50`) was seen once in a 200 s `NX_FORCE_BC_DECODE=1` run and has
+  not reproduced since.
+
 ### Changed files (WSL `~/sp2port`)
 
 * `runtime/src/hle_os.cpp` — arena `0xC0000000` → `0xC7000000` in `QueryMemoryInfo`.
@@ -291,3 +400,7 @@ the first suspect; revisit after the shader translation.
 * `runtime/src/nvn/nvn_texture_layout.cpp` — total storage size rounded to 512 instead of a whole block
   (the driver aligns per level and does not round the total; the exact `0x71800b45c4` transcription is
   still open). A 120 s run with this kept the display loop alive past present #2048 with no fatal.
+* `runtime/src/nvn/nvn_image.cpp`, `nvn_draw.cpp`, `nvn_vk.h` — `compressed_image()`: a compressed colour or
+  depth slot is handled image-less (section 7).
+* `runtime/src/nvn/nvn_cmd.cpp` — a dropped command list is kept and later submits/calls are served from it
+  (section 8); `NX_NO_KEEP_LISTS=1` restores the old rule.
