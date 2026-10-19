@@ -11,7 +11,9 @@ SDK's own module init and audio, completes `RootTask::prepare_`, returns from
 carousel and the title screen on screen, no fatal, no validation error and no
 unknown-handle call. The last two blockers were a BC3 texture bound as a render
 target (host SIGFPE) and command lists dropped by the port's lifetime heuristic
-(which made every frame black); both are described below.
+(which made every frame black); both are described below. Section 10 adds a
+native Windows build of the same sources, so the port also runs on the host GPU
+(RTX 3060, 60 fps) instead of lavapipe.
 
 ## Running
 
@@ -36,6 +38,14 @@ the title screen covers the frame.
 
 The game's romfs must be reachable: `private/extract/romfs` is a symlink to the
 `romfs/` directory produced by hactool.
+
+On the **host GPU** (no lavapipe): build `sp2.exe` with `./build-win.sh` in WSL
+and run it on Windows — `tools/wsl/run-win.ps1` does the staging, the romfs
+junction and a timed run (section 10):
+
+```powershell
+powershell -File tools\wsl\run-win.ps1 -Seconds 120        # -DumpEvery 0 for speed
+```
 
 Single-object rebuild + relink (the pattern used for every fix below):
 
@@ -385,6 +395,80 @@ the Inkling, a blue ink blob, six page dots with the first active, and the `R`
 button prompt. The PPMs (plus PNG copies of three frames) are in
 `~/sp2port/private/frames/`.
 
+### 10. Host GPU: native Windows build (2026-10-19)
+
+Everything above runs through lavapipe because the WSL distro has no real-GPU
+Vulkan ICD: `/dev/dxg` is only the D3D12/paravirt device, this Ubuntu's
+`mesa-vulkan-drivers` ships no `dzn` (Vulkan-on-D3D12) files, and NVIDIA's WSL
+Vulkan ICD is not installed either. The runtime already carries a Windows backend
+(`runtime/src/platform_win.cpp`, `memguard_win.cpp`), so the port builds for the
+host and runs against the real driver instead:
+
+```bash
+# one-time, in WSL, no sudo: the LLVM-MinGW Linux tarball targets Windows
+curl -L -o llvm-mingw.tar.xz https://github.com/mstorsjo/llvm-mingw/releases/download/20261006/llvm-mingw-20261006-ucrt-ubuntu-22.04-x86_64.tar.xz
+tar -xf llvm-mingw.tar.xz && mv llvm-mingw-20261006-ucrt-ubuntu-22.04-x86_64 ~/llvm-mingw
+cd ~/sp2port && ./build-win.sh 8          # 603 units -> sp2.exe (138 MB, symbols kept)
+```
+
+then on Windows (staged by `tools/wsl/run-win.ps1`, which also makes the romfs
+junction and stops the process after the requested time):
+
+```
+C:\Users\Hexa\Documents\nintendo\sp2win\   sp2.exe + private\{analysis,frames,fonts,spirv,user,extract\romfs->hactool romfs}
+NX_HEADLESS=1 NX_DATA_ROOT=private NX_FENCE_TIMEOUT_MS=600000 NX_DUMP_FRAMES=100
+```
+
+Portability work this needed (all small):
+
+* `tools/wsl/build-win.sh` — **new**: compiles the same `gen/**` + `runtime/src/**`
+  units with `x86_64-w64-mingw32-clang++`, passing `-DVK_USE_PLATFORM_WIN32_KHR`
+  (`vk_gen.cpp` gates the win32 surface path on it) and `-D_WIN32_WINNT=0x0A00`
+  (`SetProcessDpiAwarenessContext`). The unit list comes from `obj-all/*` so it
+  cannot drift from the Linux build; `platform_linux.cpp` is replaced by
+  `platform_win.cpp`, `memguard_win.cpp` and the new `platform_win_crt.cpp`.
+  Objects are cached in `obj-win/`, rebuilt when the source or the script is newer.
+* `runtime/src/platform_win.cpp` — `commit()` now falls back to
+  `MEM_RESERVE|MEM_COMMIT`, mirroring `platform_linux.cpp`'s `MAP_FIXED` behaviour:
+  the loader commits module memory without a preceding reserve, and `MEM_COMMIT`
+  alone then fails with `ERROR_INVALID_ADDRESS` (487). `reserve()`/`commit()` log
+  the range and `GetLastError()` when they fail (they were silent).
+* `runtime/src/platform_win_crt.cpp` — **new**: mingw's `<time.h>` defines
+  `clock_gettime()` as an always-inline call to `clock_gettime64()`, which no CRT
+  provides; the shim supplies `CLOCK_REALTIME`, `CLOCK_THREAD_CPUTIME_ID` and
+  `CLOCK_MONOTONIC` on Win32 primitives.
+* `runtime/src/frame_stats.cpp` — `thread_cpu_ns()` uses `GetThreadTimes()` on Windows.
+* `runtime/src/hle_hid.cpp`, `runtime/src/nvn/nvn_shaders.cpp` — missing
+  `<cstdlib>` (`std::getenv`/`std::strtoull` arrive transitively through glibc).
+* `NX_DATA_ROOT=private` — Linux's `data_root()` defaults to `private`, Windows's
+  to `kInfo.pc_data_root` (`private/sp2`); the variable makes both layouts the same.
+
+Results (`sp2win/run.log`, 120 s, `NX_DUMP_FRAMES=100`; WSL-side readings for comparison):
+
+* device: `GPU 0: AMD Radeon(TM) Graphics (integrated)`, `GPU 1: NVIDIA GeForce RTX
+  3060 Laptop GPU (discrete, Vulkan 1.4, driver 9a100000)` — the port picks the
+  NVIDIA automatically (`private/pipelines_10de_2520.bin` is its pipeline cache)
+* 1600 frames (a present line every 16-32), **0 `VUID` lines, 0 faults, 0
+  unknown-handle calls**; `per frame over 60: 34-60 fps, 1.0 submits, replay
+  2.0-2.4 ms, fence wait 5.3 ms, present 0.2-14 ms, upload 6.54 MB` — i.e. the
+  game's own 60 fps cap instead of lavapipe's 8-11 fps (79.74 ms fence wait)
+* frame dumps cost ~0.7-0.9 s each: with `NX_DUMP_FRAMES=100` there are stalls of
+  760-935 ms at exactly frames 299/399/499/.../1599, with `NX_DUMP_FRAMES=0` the
+  same watchdogs drop to 100-180 ms — the readback blocks the display thread
+* fidelity: the real driver draws **more** than lavapipe did. At the tip page
+  lavapipe lit 110,977 px on black; NVIDIA lights all 2,073,600 px (max 255) — the
+  light background gradient, the jellyfish silhouettes and their shadows are all
+  present (`frames/win_00400.png`, `win_01600.png`), i.e. the missing screen-filling
+  background was a lavapipe limitation, not a guest bug
+* a first run with a **cold** pipeline cache stalled after frame 498 (the port's own
+  `hang: no frame for 5 s` watchdog) for longer than a 45 s window; later runs with
+  the cache in place showed only the dump stalls
+
+Open from this: with dumps off, one 5 s stall at frame 1276 — the main thread in
+`sead::WorkerMgr::sync()` on a light event while the actor-calc workers sit in
+`sead::Worker::proc_`. Same family as the WSL transient stalls in section 9, but
+long enough to trip the hang watchdog.
+
 ### Open items
 
 * The usage estimate still saturates; section 8 compensates after the fact. A
@@ -400,6 +484,11 @@ button prompt. The PPMs (plus PNG copies of three frames) are in
 * An intermittent host SIGSEGV (fault address `0xbf800000`, port code, guest LR
   `present_+0x50`) was seen once in a 200 s `NX_FORCE_BC_DECODE=1` run and has
   not reproduced since.
+* On the host GPU (section 10) the same stall family reaches the hang watchdog:
+  with dumps off, one 5 s stall at frame 1276 with the main thread in
+  `sead::WorkerMgr::sync()` and the actor-calc workers parked in
+  `sead::Worker::proc_`; a cold-pipeline-cache first run stalled after frame 498
+  for over 45 s. Worth a look at the light-event wait that `sync()` uses.
 
 ### Changed files (WSL `~/sp2port`)
 
@@ -414,3 +503,13 @@ button prompt. The PPMs (plus PNG copies of three frames) are in
   depth slot is handled image-less (section 7).
 * `runtime/src/nvn/nvn_cmd.cpp` — a dropped command list is kept and later submits/calls are served from it
   (section 8); `NX_NO_KEEP_LISTS=1` restores the old rule.
+
+Host (Windows) build, section 10:
+
+* `tools/wsl/build-win.sh` — **new**: LLVM-MinGW cross build, unit list from `obj-all/*`, `obj-win/` cache.
+* `tools/wsl/run-win.ps1` — **new**: stages `sp2win/`, makes the romfs junction, timed headless run.
+* `runtime/src/platform_win_crt.cpp` — **new**: `clock_gettime64` on Win32 primitives.
+* `runtime/src/platform_win.cpp` — `commit()` falls back to `MEM_RESERVE|MEM_COMMIT`; reserve/commit report
+  `GetLastError()`; `WINVER`/`_WIN32_WINNT` come from the build flags.
+* `runtime/src/frame_stats.cpp` — `GetThreadTimes()` for per-thread CPU time on Windows.
+* `runtime/src/hle_hid.cpp`, `runtime/src/nvn/nvn_shaders.cpp` — explicit `<cstdlib>`.
