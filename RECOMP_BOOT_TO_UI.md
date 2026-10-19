@@ -724,8 +724,23 @@ What is missing is the glyph rasterisation:
 * **no draw ever targets that texture**, and read-backs at frames 200/300/400/600 are
   100% zero (0 of 4,194,304 bytes non-zero),
 * while the port's first *upload* of the same texture sampled 5,527 of 65,536 bytes
-  non-zero — so the CPU-side cache does receive glyph data at some point, but it does
-  not reach the GPU image the text samples.
+  non-zero — the same 5,527 bytes are still there at every frame, i.e. the CPU-side
+  glyph cache never receives any glyph pixels either.
+
+The cause is the **rasteriser thread**:
+
+```
+eui::ScalableFontMgr::update              called continuously (~1,200+ times)
+eui::ScalableFontMgr::UpdateTextureCacheThread::calc_   called exactly 3 times, then never again
+  -> nn::font::TextureCache::UpdateTextureCache          (the only caller of it)
+```
+
+`eui::ScalableFontMgr` keeps a dedicated `UpdateTextureCacheThread` that wakes up and
+rasterises newly registered glyphs into the atlas. In the port it ticks three times at
+startup (before any real glyph is registered) and then stays asleep forever, so the
+atlas stays empty and every glyph quad samples zeros. This is a thread-wakeup/kernel
+issue, not a font-data issue: the fonts themselves decode correctly (`OTTO` and
+TrueType data arrive at `FSS_load_font`, `FSS_set_cmap` gets non-null faces).
 
 Known crash in the same area (reached in the tutorial):
 
