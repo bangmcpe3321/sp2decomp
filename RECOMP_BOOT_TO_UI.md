@@ -778,10 +778,12 @@ but it only maps the font memory pool and sets up `nn::gfx` resources. No draw a
 copy targets the atlas.
 
 Measured after the fix: `nn::fontll::ScalableFontEngine::AcquireGlyphmap` **is** called
-(~every 300 glyph operations), so glyph data is produced somewhere — but the atlas's
-memory is exactly its pool base (`off=0`, `mem == pool->memory`, 4 MB) and its content
-never changes (constant 5,527/65,536 non-zero bytes). So whatever the engine produces
-never reaches the texture the text draws sample.
+(~every 300 glyph operations), but its only caller is `TextureCache::CalculateCharWidth`
+(through the wrapper at `main+0x1414f18`), i.e. it is used for **measurement**, not for
+plotting. Its glyph data is never written anywhere. The atlas's memory is exactly its
+pool base (`off=0`, `mem == pool->memory`, 4 MB) and its content never changes (constant
+5,527/65,536 non-zero bytes). So whatever the engine produces never reaches the texture
+the text draws sample.
 
 Known crash in the same area (reached in the tutorial):
 
