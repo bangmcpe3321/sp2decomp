@@ -364,6 +364,8 @@ route above is what the port ships.
 
 * exit 124 (timeout), `nvn: present #1024`, no `fault report`, no `SIGSEGV`/`SIGFPE`
 * 0 `VUID` lines, 0 unknown-handle calls, 139 transient stalls (all recover)
+* a 60 s repeat with `NX_VK_VALIDATION=1` (the layer is opt-in) is equally clean:
+  exit 124, `present #512`, 0 validation errors, 0 faults, non-black dumps
 * `per frame over 60: 11.2 fps, 1.0 submits, replay 6.08 ms, fence wait 79.74 ms, upload 6.54 MB`
   (lavapipe; the earlier black runs looked faster only because no draw stored anything)
 * dumps every 100 frames (`NX_DUMP_FRAMES=100`): `00100`/`00200` are fully covered
@@ -373,7 +375,8 @@ route above is what the port ships.
 The frames are Splatoon 2's own UI: the diagonal green→blue ink ribbon with
 jellyfish silhouettes (title screen) and the boot tip page — lime ink splat with
 the Inkling, a blue ink blob, six page dots with the first active, and the `R`
-button prompt. The PPMs are `~/sp2port/private/frames/`.
+button prompt. The PPMs (plus PNG copies of three frames) are in
+`~/sp2port/private/frames/`.
 
 ### Open items
 
