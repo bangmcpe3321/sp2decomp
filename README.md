@@ -26,6 +26,12 @@ and the six step dots all render. The two Inkling models and every UI label are 
 
 Both cases are tracked to the renderer, not to game logic:
 
+![Text after the tiled alpha-from-R atlas fix](docs/images/boot-text-visible.png)
+
+*After fixing the tiled alpha-from-R atlas upload: text now reaches the screen. The glyphs are
+still garbled because the atlas content itself is stale — the scalable-font rasteriser never
+runs (see below).*
+
 - **Text** is set correctly (`nn::ui2d::TextBox::SetString` receives every string, e.g.
   `どっちか 選ぶんだ！`, `ガール`, `ボーイ`), but the 2048×2048 R8 font glyph atlas is
   never filled, so every glyph samples an empty texture.
