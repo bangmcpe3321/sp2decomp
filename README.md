@@ -10,6 +10,29 @@ This is a research log, not a finished decompilation. It records what has been
 established about the module's structure, architecture and subsystems, the scripts
 used to establish it, and how far the port has got.
 
+## Current state
+
+The recompiled port runs the game's own code on Vulkan on Windows and reaches the
+in-game UI: PlayerMake character creation, the title screen and the tutorial.
+
+![PlayerMake character creation](docs/images/boot-playermake.png)
+
+*PlayerMake, hair step. The room, the ink-tank panel, the hair previews, the squid cursor
+and the six step dots all render. The two Inkling models and every UI label are missing.*
+
+![Title screen](docs/images/boot-title.png)
+
+*The title screen after PlayerMake. Artwork and layout draw; text still does not.*
+
+Both cases are tracked to the renderer, not to game logic:
+
+- **Text** is set correctly (`nn::ui2d::TextBox::SetString` receives every string, e.g.
+  `どっちか 選ぶんだ！`, `ガール`, `ボーイ`), but the 2048×2048 R8 font glyph atlas is
+  never filled, so every glyph samples an empty texture.
+- **Characters** are submitted every frame as fully skinned draws with real model
+  textures, and the mask pass rasterises them (verified by target snapshots), but the
+  visible colour pass leaves no pixels.
+
 ## Start here
 
 | What you want | Where to go |
