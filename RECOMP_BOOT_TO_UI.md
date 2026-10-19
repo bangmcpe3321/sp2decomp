@@ -24,6 +24,7 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json NX_HEADLESS=1 ./sp2
 # NX_TRACE_FS=1   every file the game opens
 # NX_DUMP_FRAMES=100  write private/frames/00100.ppm, 00200.ppm, ... from the presented texture
 # NX_NO_KEEP_LISTS=1  restore the old command-list drop rule (frames go black, see below)
+# NX_CV_HIST=1    record the last 4096 condition-variable events; a hang report prints the stuck keys' histories
 ```
 
 A healthy run ends in exit 124 (the timeout), prints `nvn: present #N` throughout
@@ -303,11 +304,20 @@ to produce `private/spirv/<hash>.spv` + `results.tsv`.
 ### 6. Next crash behind the shaders
 
 When frames actually run, `agl::utl::DynamicTextureAllocator::alloc_`
-(`0xF05A00`) calls `dump_(0..3)` → `TextureMemoryAllocator::dumpDetail()`
-(`0xF2C2F0`) and faults at `0x8` around present #2048. That path carves dynamic
-textures using NVN storage size/alignment, so the port's `GetStorageSize`
-(today: block-rounded, and 0 when the format-table entry's bit 0 is clear) is
-the first suspect; revisit after the shader translation.
+(`0xF05694`; the calls are at `0xF05A70..0xF05A94`) calls `dump_(0..3)` →
+`TextureMemoryAllocator::dumpDetail()` (`0xF2C2F0`), and
+`gsys::Layer::postDrawImpl` calls `DynamicTextureAllocator::dump()` whenever the
+allocator's used size changed. The detail dump walks the allocator's block lists
+**without a lock** while other render jobs allocate/free blocks, so the walk can
+observe a transiently null `next` and the port faults at `0x8` (after present
+#2048; 5 of the 8 first-batch validation runs). The dump is read-only, so
+`dumpDetail` now stops the walk at a null link instead of dereferencing it
+(section 11, `tools/wsl/wsl-patch-dumpdetail-guard.py`); 4/4 120 s
+production-config runs were clean afterwards. The underlying block-list
+inconsistency is still unexplained — the truncated NVN storage-size model
+(`GetStorageSize`: block-rounded, and 0 when the format-table entry's bit 0 is
+clear) remains a suspect — but it no longer kills the process through the debug
+dump.
 
 ### 7. Compressed images are never attachments (host SIGFPE, `08912`)
 
@@ -469,12 +479,167 @@ Open from this: with dumps off, one 5 s stall at frame 1276 — the main thread 
 `sead::Worker::proc_`. Same family as the WSL transient stalls in section 9, but
 long enough to trip the hang watchdog.
 
+### 11. The `WorkerMgr::sync()` deadlock: the main thread never signals the job queue (2026-10-19)
+
+The stall above is a real deadlock, not just a slow frame. In a hang the main
+thread is in `sead::WorkerMgr::sync()+60` → `nn::os::TimedWaitLightEvent`, and
+one actor-calc worker is in `sead::Worker::proc_()+0x190` → `sead::JobQueue::FINISH`
+→ infinite `nn::os::WaitLightEvent`. `sync()` retries the *same* worker index
+after every `mTimeout` (~10 ms), so it never recovers; the audio thread keeps
+running. It reproduced in roughly one of every four cold 150 s runs.
+
+What the queue counts. The actor calculator pushes one `sead::FixedSizeJQ` to
+every worker in the core mask and then participates itself:
+
+```
+ActorCalculator::calc
+  clear(queue); enqueue jobs                  queue+0xc0 = total jobs
+  pushJobQueue(mgr, name, queue, mask, 1, 0)  -> begin: queue+0x70 = 0, per-core flags
+  WorkerMgr::run(mgr)                         runAll(queue) on the main thread
+  WorkerMgr::sync(mgr)                        wait each worker's completion event
+  rewind(queue)                               queue+0xc4 = 0 (read index)
+```
+
+`FixedSizeJQ::run(num, &count, worker)` claims
+`min(granularity, [queue+0xc0] - [queue+0xc4])` jobs under the queue's spinlock,
+advances `[queue+0xc4]`, runs them, and reports `done = (new read index >= c0)`.
+`Worker::proc_` loops `run` until done, adds its count to `[queue+0x70]`
+(LDXR/STXR), and **signals the queue event when `[queue+0x70] >= getNumJobs()`**
+(the virtual call resolves to `ldr w0, [x0, #0xc0]`). It then calls `FINISH`,
+whose early-out returns when `isDone_()` (`[queue+0x70] == getNumJobs()`) is
+already true, and otherwise waits on the queue event (a manual-clear
+`sead::Event`: state byte at `+0x29`, cleared `0xfe`, signalled `1`,
+`SignalLightEvent` broadcasts).
+
+The hole. `WorkerMgr::run()` is a participant too, but after
+`q->runAll(&count)` it only does `[queue+0x70] += count` and then
+`q->FINISH(core)` — it never performs the workers' `>= getNumJobs()` test, so
+it never signals the queue event. When the main's `runAll` claims the **last**
+jobs while a worker has already entered `FINISH` (the worker's own check failed
+because the main's batch was still outstanding), the main's `FINISH` takes the
+"already done" early-out and returns *without signalling*. The worker sleeps on
+the queue event forever, never signals its own worker completion event, and
+`sync()` then waits for that worker forever. The console can hit the same race,
+but it needs the worker to reach `FINISH` in the narrow window before the main
+finishes the final batch; the port's main thread runs `runAll` as a tight C++
+loop against three competing host threads, which widens the window enough to
+hit it within minutes.
+
+Fix. A participant that finds the queue complete in `FINISH` must release the
+barrier's waiters before returning. One line in the translated
+`sead::JobQueue::FINISH` (`gen/main/code_317.cpp`, patch tool
+`tools/wsl/wsl-patch-finish-signal.py`):
+
+```c
+if (((uint32_t(c.x[0]) >> 0) & 1) == 0) goto L_EA9A48; // tbz w0, #0
+c.x[0] = uint64_t(c.x[19] + 0x28ull);
+main_00E98E00(c); // sead::Event::setSignal
+L_EA9A3C:;
+```
+
+The event is manual-clear, so the signal wakes every waiter and is a no-op when
+it is already signalled; the next batch's `Worker::proc_` clears it again with
+`resetSignal`. The early-out is only taken when `isDone_()` is true, i.e. every
+job of the batch has been accounted for, so no waiter can be released early.
+
+That fix is necessary but was not sufficient: three cold runs with it still hung
+(frames 166, 349 and 163). The CV ring gave the exact final handoff (queue
+`508d115600`, values from `fix5_1.log`):
+
+```
+#356021 wait    t=50 ... mutex 508d11564c word 10000   main enters the CV wait holding the queue CS
+#356022 sleep   t=50 ... word 0                        registered, CS released
+#356023 sig     t=56 ... aux 1                         worker completes the batch, signals the event
+#356024 queue   t=50 ... word 40010013                 main moved to the mutex queue
+#356026 arbU    t=56 ... word 40010013 -> 0            signaler leaves; no waiter was handed the lock
+#356035 woke    t=50 ... word 0                        main wakes with the CS word 0 -- no ownership
+#356036 sig     t=55 ... aux 0                         the last signal: no registered waiter
+#356038 wait    t=50 ... word 0                        main re-registers without the CS
+#356039 sleep   t=50 ... word 1                        sleeps forever; the event state byte says 1
+```
+
+### The second hole: the handoff tag was 0
+
+`svcWaitProcessWideKeyAtomic` receives the waiter's mutex tag in `w2`, and the
+kernel must write that tag back into the mutex word to hand the lock over. The
+SDK loads it at `GetCurrentThread()+0x1B8`. But the sdk module's GOT slot for
+`GetCurrentThread` is a **relocation**, and `runtime/src/loader.cpp` binds every
+function relocation to an HLE *before* it looks at module exports: the call
+resolves to the port's synthetic per-thread context
+(`hle_os.cpp: get_current_thread`), whose +0x1B8 is 0 -- not the sdk's own
+`GetCurrentThread` at `sdk+0x81870`, which returns `[TP+0x1F8]`. Meanwhile
+`InternalCriticalSection::Enter` reads its tag from `[[TP+0x1F8]+0x1B8]` (the
+guest `ThreadType`), which is the thread handle (0x10000, 0x10012, ...). So the
+guest passed tag=0 and both handoff paths stored it: `unlock_mutex` writes
+`next->wait_tag` into the mutex word, and the signal's direct `hand` branch
+CASes in `wait_tag`.
+
+The woken waiter therefore resumed *without* the critical section. Its
+`WaitLightEvent` re-check then ran unserialized against `ClearLightEvent`: a
+worker could `resetSignal` (state 0xfe) after the signal, the waiter would
+re-read 0xfe and re-register, and a second worker's signal could fire in the gap
+-- state 1, CV word 1, one sleeper, no pending signal. That is the hang.
+
+Fix: the mutex word the caller holds already contains the tag that must be
+restored, so derive it from there (`runtime/src/kernel.cpp`,
+`svc_wait_process_wide_key`; patch tool `tools/wsl/wsl-patch-cv-tag.py`):
+
+```c
+const uint32_t owner_tag = load32(mutex) & ~kHandleWaitMask;
+self->wait_tag = owner_tag ? owner_tag : tag;
+```
+
+The waiter now resumes holding the critical section, so its re-check is
+serialized with signal/reset and the lost-wakeup window is gone.
+
+Instrumentation that localized it (kept in the port): `NX_CV_HIST=1` records a
+1M-event condition-variable ring (wait/sleep/signal/queue/hand/wake/arbitrate
+events with the guest thread id and both words) and the hang report prints the
+*newest* 32 events for every stuck key, the mutex/CV waiter lists, and a global
+event tail. A `LightEvent` wait is mapped back to its `sead::FixedSizeJQ`
+(`queue = key - 0x50`) with `state`, `event state`, `done / jobs`, `read` and
+`cap`.
+
+Validation (2026-10-19, cold cache, `NX_CV_HIST=1`, `NX_DUMP_FRAMES=100`,
+150 s): eight runs with the tag fix — `fix8_1`, `fix9_1..3`, `fix10_1`,
+`fix11_1`, `fix12_1` and `prod1_1` — produced **zero hangs**: no
+`hang: no frame` report and no `WorkerMgr::sync` stuck stack. Three completed
+the full 150 s (`fix8_1`: present #4096, 67 stalls; `fix9_2`: #4096 at frame
+6000, 66 stalls; `fix10_1`: #4096, 63 stalls, then the 8.0 GB memory guard
+stopped it at 5652 frames). All runs: 0 VUIDs, 0 fault reports. Frame dumps are
+non-black: frame 100 is the boot black frame; frames 400–2600 are 100% lit,
+mean RGB ≈ 196–201, 26–92 colour buckets.
+
+The remaining failure was a *separate* crash, not a lost wakeup. Five runs
+(`fix9_1`, `fix9_3`, `fix11_1`, `fix12_1`, `prod1_1`) died at the same host
+instruction, `sp2.exe+0x4200830` (guest `0xF2C2F0`,
+`agl::utl::TextureMemoryAllocator::dumpDetail`), data address 8, after frames
+2200–4900. The host registers at the fault (`rax=this`, `r11=0x68`,
+`r8=-0x68`) show the list walk had loaded `next = 0` and then dereferenced
+`next + 8`. The call chain is `LayerJob::invoke` → `calcLayerDL_` →
+`gsys::Layer::postDrawImpl` → `DynamicTextureAllocator::dump()` →
+`dump_(frameIndex)` → `dumpDetail()`. `postDrawImpl` only calls `dump()` when
+`getUseSize()` changed, i.e. exactly while other render jobs can be
+allocating/freeing blocks from the same lists; the walk takes no lock, and the
+port's slower timing opens the race. `dumpDetail()` is read-only (no stores, no
+calls), so a null link is now treated as the end of the list instead of being
+dereferenced (`gen/main/code_328.cpp`, patch tool
+`tools/wsl/wsl-patch-dumpdetail-guard.py`). This is a debug-dump hardening; the
+underlying guest race is untouched.
+
+Validation of the guard: four 120 s production-config runs (no `NX_CV_HIST`,
+no frame dumps, warm cache) — **4/4 without a crash or hang**, all reaching
+present #4096; three were still alive at 120 s (≈7.1 GB), one was stopped by
+the 8.0 GB limit. Before the guard, 5 of 8 runs crashed at this instruction.
+
 ### Open items
 
 * The usage estimate still saturates; section 8 compensates after the fact. A
   faithful `AddCommandMemory`/`GetCommandMemoryUsed` model (or the driver's real
   per-command size) would make the overlap rule trustworthy again.
-* `g_kept_lists` only evicts by cap; evict by use instead.
+* `g_kept_lists` only evicts by cap; evict by use instead. Host commit grows
+  ≈3.5 GB/min (7.1 GB at 120 s), so the 8.0 GB guard stops a run after ~110 s
+  (`fix10_1`: 5652 frames). This is now the next long-run blocker.
 * The 11 fps come from lavapipe's fence wait (79.74 ms/frame), not the port:
   replay is 6.08 ms.
 * Transient stalls are lock contention, not a lost wakeup:
@@ -484,11 +649,11 @@ long enough to trip the hang watchdog.
 * An intermittent host SIGSEGV (fault address `0xbf800000`, port code, guest LR
   `present_+0x50`) was seen once in a 200 s `NX_FORCE_BC_DECODE=1` run and has
   not reproduced since.
-* On the host GPU (section 10) the same stall family reaches the hang watchdog:
+* On the host GPU (section 10) the same stall family reached the hang watchdog:
   with dumps off, one 5 s stall at frame 1276 with the main thread in
   `sead::WorkerMgr::sync()` and the actor-calc workers parked in
-  `sead::Worker::proc_`; a cold-pipeline-cache first run stalled after frame 498
-  for over 45 s. Worth a look at the light-event wait that `sync()` uses.
+  `sead::Worker::proc_`. Root-caused and fixed in section 11 (the main-thread
+  participant never signalled the job queue's completion event).
 
 ### Changed files (WSL `~/sp2port`)
 
@@ -513,3 +678,25 @@ Host (Windows) build, section 10:
   `GetLastError()`; `WINVER`/`_WIN32_WINNT` come from the build flags.
 * `runtime/src/frame_stats.cpp` — `GetThreadTimes()` for per-thread CPU time on Windows.
 * `runtime/src/hle_hid.cpp`, `runtime/src/nvn/nvn_shaders.cpp` — explicit `<cstdlib>`.
+
+Job-queue deadlock (section 11):
+
+* `gen/main/code_317.cpp` — `sead::JobQueue::FINISH` signals the queue's completion event on the
+  already-done early-out. Applied by `tools/wsl/wsl-patch-finish-signal.py` (idempotent, `--check`).
+* `tools/wsl/wsl-patch-finish-signal.py` — **new**: patch tool for the line above.
+* `runtime/src/kernel.cpp` — CV wait derives the handoff tag from the caller-held
+  mutex word (`owner_tag = load32(mutex) & ~kHandleWaitMask`), `wake()` reason
+  diagnostics, `NX_CV_HIST=1` ring of 1M events plus `dump_cv_history`/`dump_cv_tail`/
+  `dump_waiters`.
+* `runtime/src/kernel_watch.cpp` — the hang report prints the stuck keys' CV histories (up to 8) and
+  decodes a `LightEvent` wait back to its `sead::FixedSizeJQ` (`queue = key - 0x50`) to print
+  `state`, `event state`, `done / jobs`, `read`, `cap`.
+* `tools/wsl/wsl-patch-cv-tag.py` — **new**: patch tool for the handoff tag fix.
+
+Texture-memory debug dump (section 6):
+
+* `gen/main/code_328.cpp` — `TextureMemoryAllocator::dumpDetail()` stops a read-only
+  list walk at a null link instead of dereferencing `null + 8` (the debug dump races
+  with block allocation/free). Applied by `tools/wsl/wsl-patch-dumpdetail-guard.py`
+  (idempotent, `--check`).
+* `tools/wsl/wsl-patch-dumpdetail-guard.py` — **new**: patch tool for `dumpDetail`.
