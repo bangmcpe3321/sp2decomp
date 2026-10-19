@@ -15,7 +15,7 @@ used to establish it, and how far the port has got.
 The recompiled port runs the game's own code on Vulkan on Windows and reaches the
 in-game UI: PlayerMake character creation, the title screen and the tutorial.
 
-![PlayerMake character creation](docs/images/boot-playermake.png)
+![PlayerMake character creation](docs/images/frame_00200.png)
 
 *PlayerMake, hair step. The room, the ink-tank panel, the hair previews, the squid cursor
 and the six step dots all render. The two Inkling models and every UI label are missing.*
