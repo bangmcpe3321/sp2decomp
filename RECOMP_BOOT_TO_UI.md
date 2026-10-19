@@ -700,3 +700,66 @@ Texture-memory debug dump (section 6):
   with block allocation/free). Applied by `tools/wsl/wsl-patch-dumpdetail-guard.py`
   (idempotent, `--check`).
 * `tools/wsl/wsl-patch-dumpdetail-guard.py` — **new**: patch tool for `dumpDetail`.
+
+## Text and characters on screen (2026-10-20)
+
+The port now boots through the whole first-run flow: PlayerMake (all six steps), the
+title screen and the tutorial, all rendered by the recompiled game code. Two rendering
+defects remain, and they are renderer bugs, not game-logic bugs.
+
+### UI text is set but never drawn
+
+The screen is supposed to show text (`Message/LayoutMsg_JPja.szs` is loaded and its
+`00.msbt` carries `どっちか 選ぶんだ！`, `つぎは …`, `さいごに …`, `この設定でオッケー？`,
+`ガール`, `ボーイ`, `ちょっとまって`, `オッケー！`, `回転`). A hook on
+`nn::ui2d::TextBox::SetString` (0x137b320) shows every one of those strings arriving
+verbatim, and `nn::font::CharWriter::PrintGlyph` is called per glyph. All draws execute
+(`0 no program, 0 no pipeline`).
+
+What is missing is the glyph rasterisation:
+
+* `nn::font::TextureCache` creates a 2048×2048 R8 colour target (NVNtexture
+  `0x5007300f50`); `RegisterGlyph`, `FindGlyphNode`, `SetFontFace` and
+  `CompleteTextureCache` run, `SetFontFaceNoPlot` runs ~91,800 times (measurement), but
+* **no draw ever targets that texture**, and read-backs at frames 200/300/400/600 are
+  100% zero (0 of 4,194,304 bytes non-zero),
+* while the port's first *upload* of the same texture sampled 5,527 of 65,536 bytes
+  non-zero — so the CPU-side cache does receive glyph data at some point, but it does
+  not reach the GPU image the text samples.
+
+Known crash in the same area (reached in the tutorial):
+
+```
+Game::TutorialGuideMsgPage::stateIn
+  Cui::TextSetter::updateText
+    eui::TextBoxEx::adjustText_
+      nn::font::TextWriterBase::CalculateStringWidth
+        nn::font::TextureCache::CalculateCharWidth
+          nn::font::TextureCache::GetInnerFontFace
+            nn::font::TextureCache::SetFontFaceNoPlot
+              FSS_set_cmap            <- null face, data address 0x20
+```
+
+So a second font face (a size or subset that fails to load) reaches the scaler with a
+null face.
+
+### Inkling models are submitted but invisible
+
+The skinned player draws are issued every frame into the visible scene target
+(`vs 56749b4df6df0e85 fs cc0af353291e5c0e`, 6,384 indices, 45 bones, real model
+textures), and `NX_SNAP_FS` snapshots taken right after those draws show the **mask
+pass** rasterising the shoes at the two standing positions. The visible colour pass
+leaves no pixels, while the projected blob shadows still land where the models stand.
+Open: the visible pass transform/camera or its material state.
+
+### Diagnostics used (all temporary, idempotent `--restore`)
+
+| Probe | Target |
+|---|---|
+| `TXTDBG3` | `nn::ui2d::TextBox::SetString` strings |
+| `TXTCALC` / `GLYPHDBG` | `TextBox::Calculate` and `CharWriter::PrintGlyph` |
+| `FCACHE` | `TextureCache::UpdateTextureCache` / `RegisterGlyph(s)` / `SetFontFace*` |
+| `FONTDBG` | `ScalableFont::Initialize`, `FSS_load_font` (data magic), `FSS_set_cmap` |
+| `TEXDBG` | texture creation, 1–2 byte-per-pixel targets |
+| `TEXTDBG` | draws with glyph-record storage buffers |
+
