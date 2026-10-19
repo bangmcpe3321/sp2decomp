@@ -756,6 +756,17 @@ So the failing step is inside `UpdateTextureCache` itself: it sets up `nn::gfx`
 resources and then the actual glyph rasterisation never reaches the texture (no draw
 targets it, and the cache memory is unchanged).
 
+A decisive experiment: with the atlas forced to opaque white at upload
+(`NX_FONT_WHITE=1`), the text quads become visible — but only **one small white quad**
+appears where a whole string should be. So the text draw pipeline is live and samples
+the atlas, and the glyph quads that the layout produces all collapse onto one spot:
+the glyph advances/boxes are zero because the scalable font face has no usable metrics
+in the port. That, plus the empty atlas, is the full text failure.
+
+Also measured: `UpdateTextureCache`'s work list is **not** empty (the walk hits the
+64-node cap), and **no `nvnCommandBufferCopyTextureToTexture` targets the atlas**
+either — so the glyph data is produced neither by a draw, by a write, nor by a copy.
+
 Known crash in the same area (reached in the tutorial):
 
 ```
