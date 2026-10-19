@@ -27,6 +27,13 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json NX_HEADLESS=1 ./sp2
 A healthy run ends in exit 124 (the timeout), prints `nvn: present #N` throughout
 and leaves no `fault report`, no `SIGSEGV`/`SIGFPE` and no `VUID` line.
 
+For a quick look at the picture: `./shot.sh [seconds] [every]` (default 90 s,
+every 100 frames) boots the port, prints the presents/fps/handles summary and
+converts the fresh dumps to PNGs — `ppm2png.py` does the conversion alone, and
+`shot.sh` also copies the PNGs to `C:\Users\Hexa\Documents\nintendo\frames\`.
+The tip screen appears from roughly frame 300 on; before that (frames ~100-250)
+the title screen covers the frame.
+
 The game's romfs must be reachable: `private/extract/romfs` is a symlink to the
 `romfs/` directory produced by hactool.
 
