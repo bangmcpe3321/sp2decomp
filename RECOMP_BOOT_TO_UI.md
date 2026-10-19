@@ -740,7 +740,21 @@ rasterises newly registered glyphs into the atlas. In the port it ticks three ti
 startup (before any real glyph is registered) and then stays asleep forever, so the
 atlas stays empty and every glyph quad samples zeros. This is a thread-wakeup/kernel
 issue, not a font-data issue: the fonts themselves decode correctly (`OTTO` and
-TrueType data arrive at `FSS_load_font`, `FSS_set_cmap` gets non-null faces).
+TrueType data arrive at `FSS_load_font`, `FSS_set_cmap` gets non-null faces). Its
+message queue (`thread+0x38`) sees zero pushes and zero pops for the whole run, and
+`ScalableFontMgr::update` never requests an update.
+
+Two experiments on the way to a fix, both reverted:
+
+* clearing the manager's "request pending" flag (`thread+0x108`) so its per-frame
+  `CompleteTextureCache` call runs — no effect on the atlas;
+* calling `TextureCache::UpdateTextureCache` from `ScalableFontMgr::update` with the
+  thread's own cache pointer (`[[this+0x40]+0x100]`, exactly what `calc_` uses) — runs
+  (6+ calls) without crashing, but still writes nothing into the atlas.
+
+So the failing step is inside `UpdateTextureCache` itself: it sets up `nn::gfx`
+resources and then the actual glyph rasterisation never reaches the texture (no draw
+targets it, and the cache memory is unchanged).
 
 Known crash in the same area (reached in the tutorial):
 
