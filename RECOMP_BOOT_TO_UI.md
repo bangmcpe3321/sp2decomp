@@ -757,15 +757,26 @@ resources and then the actual glyph rasterisation never reaches the texture (no 
 targets it, and the cache memory is unchanged).
 
 A decisive experiment: with the atlas forced to opaque white at upload
-(`NX_FONT_WHITE=1`), the text quads become visible — but only **one small white quad**
-appears where a whole string should be. So the text draw pipeline is live and samples
-the atlas, and the glyph quads that the layout produces all collapse onto one spot:
-the glyph advances/boxes are zero because the scalable font face has no usable metrics
-in the port. That, plus the empty atlas, is the full text failure.
+(`NX_FONT_WHITE=1`), the text quads become visible — proving the draw pipeline and the
+sampling are live and only the atlas content was missing. (The advances are fine:
+15–32 px per character.)
 
-Also measured: `UpdateTextureCache`'s work list is **not** empty (the walk hits the
-64-node cap), and **no `nvnCommandBufferCopyTextureToTexture` targets the atlas**
-either — so the glyph data is produced neither by a draw, by a write, nor by a copy.
+**Fixed — the atlas upload.** The glyph atlas is an R8 texture carrying the `02010101`
+swizzle ("alpha from red"), which the port widens to RGBA8. That widening only ran for
+*pitch-linear* textures; the atlas is **tiled** (`stride 0`), so the untiled 1-byte
+texels were copied straight into a 4-byte image and the glyph data never landed on the
+GPU. `runtime/src/nvn/nvn_upload.cpp` now widens tiled alpha-from-red data as well (the
+`ALPHA_R_TILED` block scales the level offsets with it). Result: the atlas is delivered
+and **text renders on screen** — white, and still garbled because the atlas content is
+stale.
+
+**Remaining — the glyph rasteriser never runs.** `FSS_map_char` (character→glyph) and
+`FSS_get_advance` run continuously, but `FSS_get_outline` is **never called**, so no
+glyph outline is ever requested and `TextureCache` never fills the atlas.
+`UpdateTextureCache` runs and its work list is non-empty (the walk hits the 64-node cap),
+but it only maps the font memory pool and sets up `nn::gfx` resources. No draw and no
+copy targets the atlas; its guest memory keeps the same 5,527/65,536 non-zero bytes from
+start to finish.
 
 Known crash in the same area (reached in the tutorial):
 
