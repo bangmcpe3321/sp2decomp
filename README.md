@@ -3,16 +3,44 @@
 **English** · [Tiếng Việt](README_vi.md)
 
 Reverse-engineering research notes and tooling for the Nintendo Switch executable
-`main` of **Splatoon 2** (USA), specifically the retail build whose ExeFS lives in
-the `Splatoon 2 USA.xci` dump.
+`main` of **Splatoon 2** (USA), whose ExeFS lives in the `Splatoon 2 USA.xci` dump,
+plus a recompiled PC port of that executable.
 
-This repository documents what was established about the module's **structure,
-architecture and subsystem layout**, together with the scripts used to establish
-it. It is a research log, not a finished decompilation.
+This is a research log, not a finished decompilation. It records what has been
+established about the module's structure, architecture and subsystems, the scripts
+used to establish it, and how far the port has got.
 
-> **New here?** Start with **[STATUS.md](STATUS.md)** for reading order and an honest statement of what is and is not established.
->
-> **Porting to PC?** See **[PORTING.md](PORTING.md)** for scope, **[BOOT_MILESTONE.md](BOOT_MILESTONE.md)** for the narrowed target, **[BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md)** for the decoded startup chain, **[SEAD_COVERAGE.md](SEAD_COVERAGE.md)** for what the existing sead decompilation covers, **[GRAPHICS_NVN.md](GRAPHICS_NVN.md)** for how NVN dispatch makes the GPU layer tractable, **[NNWARE_COVERAGE.md](NNWARE_COVERAGE.md)** for NintendoWare (`g3d`/`ui2d`/`atk`/`vfx`/`font`) header coverage, **[AGL_COVERAGE.md](AGL_COVERAGE.md)** for `agl` graphics/lighting/AAMP, **[ECOSYSTEM.md](ECOSYSTEM.md)** for a complete survey of all 16 `open-ead` repositories, **[VERIFICATION.md](VERIFICATION.md)** for layout verification against the binary, **[PORT_WORKLIST.md](PORT_WORKLIST.md)** for the concrete boot implementation worklist, **[VTABLE_VERIFICATION.md](VTABLE_VERIFICATION.md)** for virtual-order verification and a header omission it uncovered, **[DECOMPILATION_UNBLOCKED.md](DECOMPILATION_UNBLOCKED.md)** for the WSL route that makes a real decompiler usable, **[DECOMPILED_BODIES.md](DECOMPILED_BODIES.md)** for the first decompiler-verified function bodies from `main`, **[PLATFORM_REFERENCE.md](PLATFORM_REFERENCE.md)** for the observed ABI signatures of the 51 platform functions, **[ENGINE_REFERENCE.md](ENGINE_REFERENCE.md)** for the 126 boot-closure engine functions, and **[SDK_ANALYSIS.md](SDK_ANALYSIS.md)** with **[SDK_REFERENCE.md](SDK_REFERENCE.md)** for the `sdk` module analysis, and **[PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)** with **[PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)** for where the platform layer actually lives, and **[PLATFORM_IMPLEMENTATION_SPEC.md](PLATFORM_IMPLEMENTATION_SPEC.md)** for the whole-binary call-site spec the port is written against, and **[RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md)** for the recompiled port's current boot progress (NVN graphics through UI resource loading). Full 109-subsystem breakdown in [subsystem-map.txt](subsystem-map.txt).
+## Start here
+
+| What you want | Where to go |
+|---|---|
+| What is known, what is not, and in what order to read | [STATUS.md](STATUS.md) |
+| How far the port gets on screen right now | [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md) |
+| The decoded startup chain | [BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md) |
+| The whole `main` module in one document | [ENGINE_REFERENCE.md](ENGINE_REFERENCE.md) |
+
+### Porting
+
+- Scope and target: [PORTING.md](PORTING.md), [BOOT_MILESTONE.md](BOOT_MILESTONE.md), [BOOT_ENGINE_ORDER.md](BOOT_ENGINE_ORDER.md)
+- Worklist and platform contract: [PORT_WORKLIST.md](PORT_WORKLIST.md), [PLATFORM_IMPLEMENTATION_SPEC.md](PLATFORM_IMPLEMENTATION_SPEC.md), [PLATFORM_REFERENCE.md](PLATFORM_REFERENCE.md)
+- Where the platform layer lives: [PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)
+- Graphics path: [GRAPHICS_NVN.md](GRAPHICS_NVN.md), [GRAPHICS_SCOPE.md](GRAPHICS_SCOPE.md)
+
+### Background and coverage
+
+- Engine and middleware: [ENGINE_RECONSTRUCTION.md](ENGINE_RECONSTRUCTION.md), [SEAD_COVERAGE.md](SEAD_COVERAGE.md), [NNWARE_COVERAGE.md](NNWARE_COVERAGE.md), [AGL_COVERAGE.md](AGL_COVERAGE.md)
+- `sdk` module: [SDK_ANALYSIS.md](SDK_ANALYSIS.md), [SDK_REFERENCE.md](SDK_REFERENCE.md)
+- Layout verification: [VERIFICATION.md](VERIFICATION.md), [VTABLE_VERIFICATION.md](VTABLE_VERIFICATION.md)
+- Tooling and decompilation route: [DECOMPILATION_UNBLOCKED.md](DECOMPILATION_UNBLOCKED.md), [DECOMPILED_BODIES.md](DECOMPILED_BODIES.md)
+- Wider ecosystem survey: [ECOSYSTEM.md](ECOSYSTEM.md), [subsystem-map.txt](subsystem-map.txt)
+
+## In this document
+
+[Status](#status) · [Target](#target) · [NSO container layout](#nso-container-layout) ·
+[Architecture observations](#architecture-observations) · [Memory map](#memory-map) ·
+[Subsystem decomposition](#subsystem-decomposition) · [Content pipeline](#content-pipeline) ·
+[Toolchain](#toolchain) · [Reproduction](#reproduction) · [Limitations](#limitations) ·
+[Legal](#legal) · [License](#license)
 
 ---
 
@@ -27,11 +55,11 @@ it. It is a research log, not a finished decompilation.
 | Subsystem decomposition | Done (55 namespaces) |
 | Engine & middleware identification | Done |
 | **Function-body decompilation** | **Not done** — see [Limitations](#limitations) |
-| **Recompiled port boot** | Boots through NVN/sead graphics, HID, settings, `nninitInitializeSdkModule` and audio into `RootTask::prepare_` → UI layout loading; open blocker is a `Lp::UI::Impl::DualHeap` allocation — [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md) |
+| **Recompiled PC port** | Boots to the in-game UI: `RootTask::prepare_`, display loop, PlayerMake character creation, then the title and tutorial screens — [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md). Two rendering bugs are open: the 3D characters are submitted but do not appear in the scene, and UI text is set but draws nothing (the glyph atlas stays empty). |
 
-Everything below is from static analysis of the shipped binary. No behaviour is
-claimed for any function, because no function body was decompiled. Where a
-conclusion is an inference rather than a direct observation, it is labelled.
+Everything below is static analysis of the shipped binary unless a section says
+otherwise; runtime findings from the port are labelled as such. Behaviour is only
+claimed where it has been observed or decompiled.
 
 ---
 
