@@ -13,8 +13,9 @@ used to establish it, and how far the port has got.
 ## Current state
 
 The recompiled port runs the game's own code on Vulkan on Windows. PlayerMake character
-creation completes with legible text, the game plays its intro cutscene and reaches the
-post-intro tutorial screen — in English, the language the port now reports to the game.
+creation completes with legible text, the game plays its intro cutscene, shows the
+controller-orientation screen and reaches the title screen — in English, the language the
+port now reports to the game.
 
 ![PlayerMake character creation, eye colour step](docs/images/boot-playermake-en.png)
 
@@ -27,7 +28,7 @@ still missing from the colour pass.*
 *The confirmation page, captured before the language fix (`この設定でオッケー？`); the small
 bottom-left hint is still garbled — a second, smaller atlas.*
 
-Three fixes took the port from a boot fatal to this point:
+Four fixes took the port from a boot fatal to this point:
 
 - **Dropped tail call.** `Cui::Page::findPartsControl` (`0x20BD74`) ends in
   `b 0x20CF60`, a tail call into `Control::List::searchAs<PartsCtrl>`. The recompiler emitted
@@ -50,16 +51,26 @@ Three fixes took the port from a boot fatal to this point:
   answered `en-US` (that path `memcpy`s the tag). The codes are now derived from their string
   literals at compile time and the game loads `/Message/CommonMsg_USen.szs`.
   Patch: [tools/patches/patch-language-code.py](tools/patches/patch-language-code.py).
+- **A null font face on the intro→title transition.** `nn::font::FSS_set_scale` checks the
+  face pointer, calls `get_scale_inputs` (which can release and rebuild the face) and then
+  reloads the pointer and reads `[face+0x20]` without checking it again. When the face is null
+  at that point the game died at data address `0x20`. The patch honours FSS's own null-face
+  error (`0x131`) instead, so the caller falls back to the unscaled glyph instead of crashing.
+  Patch: [tools/patches/patch-fss-null-face.py](tools/patches/patch-fss-null-face.py).
 
 Open:
 
 - **Characters.** Submitted every frame as fully skinned draws with real model textures, and
   the mask pass rasterises them (verified by target snapshots), but the visible colour pass
   leaves no pixels.
-- **Post-intro UI text.** The first screen after the intro lays out a text box at font size 100
-  and crashes in `nn::font::TextureCache::CalculateCharWidth` → `FSS_set_scale` →
-  `get_scale_inputs` (data address `0x20`): the FSS font object handed to the scaler is not a
-  valid face. Until this is fixed the game does not reach the title.
+- **Banner text at size 100.** The controller screen's two green text bands (font size 100) are
+  drawn as mirrored, stretched letter fragments although the same pipeline renders size ~40
+  text correctly, and the metrics it asks for are plausible (advances of 0.47–0.72 em). The
+  bitmap and the quad/UV therefore disagree; the next diagnostic logs and dumps every distinct
+  R8 atlas upload (packed and untiled) to see which layout the game wrote.
+- **Loading is slow.** The "now loading" screen with the ink spinner runs at 0.8–6 fps because
+  the game's own texture registration and decompression work runs as recompiled guest code;
+  once loading finishes the title screen runs at 33–58 fps.
 
 ## Start here
 
