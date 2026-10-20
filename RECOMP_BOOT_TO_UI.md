@@ -17,9 +17,24 @@ native Windows build of the same sources, so the port also runs on the host GPU
 
 ## 2026-10-20: legible text, and the boot fatal explained
 
-Two fixes moved the port from "boots but every label is a white blob, then a fatal in
-PlayerMake" to a completed character-creation flow with readable Japanese text and the
-Splatoon 2 intro screen.
+Three fixes moved the port from "boots but every label is a white blob, then a fatal in
+PlayerMake" to a completed character-creation flow, the intro cutscene, and the post-intro
+tutorial screen in English.
+
+### The game spoke Japanese because the language code was byte-swapped
+
+`nn::settings::LanguageCode` is a `char[8]`; the game compares the tag it gets back against
+its own list of console languages. The port stored each tag as a *number* whose high byte is
+the tag's first character (`0x656E2D5553` for `en-US`), and little-endian guest memory
+therefore read `"SU-ne"`. No tag matched, so the game fell back to Japanese and opened
+`/Message/CommonMsg_JPja.szs` — while `nn::oe::GetDesiredLanguage` (a `memcpy` of `"en-US"`
+in `svc_am.cpp`) already answered correctly. With the codes derived from their literals at
+compile time the game opens `/Message/CommonMsg_USen.szs` and every label is English
+(`tools/patches/patch-language-code.py`).
+
+![PlayerMake eye colour step, English](docs/images/boot-playermake-en.png)
+
+*`Pick an eye color!` — the same screen after the language fix.*
 
 ### The boot fatal was a dropped tail call, not a vtable bug
 
@@ -85,10 +100,12 @@ flow advances through the six PlayerMake steps.*
 *`この設定でオッケー？` — the confirmation page. The small bottom-left hint still comes from a
 second, smaller atlas that is not covered by this fix.*
 
-Remaining, in order: the Inkling models are still absent from the colour pass; the
-tutorial's `TutorialGuideMsgPage` crashes when it lays out a second font face
-(`GetInnerFontFace` → `FSS_set_cmap`, null face at `0x20`); and the port currently stays
-on the Splatoon 2 intro screen after confirming the character.
+Remaining, in order: the Inkling models are still absent from the colour pass; the first
+screen after the intro lays out a text box at font size 100 and crashes in
+`nn::font::TextureCache::CalculateCharWidth` → `FSS_set_scale` → `get_scale_inputs`
+(data address `0x20`, the FSS face handed to the scaler is invalid), so the port does not
+reach the title yet. (The earlier `TutorialGuideMsgPage` → `FSS_set_cmap` crash is the same
+family: a font face the cache refers to is not a usable FSS face.)
 
 ## Running
 

@@ -13,21 +13,21 @@ used to establish it, and how far the port has got.
 ## Current state
 
 The recompiled port runs the game's own code on Vulkan on Windows. PlayerMake character
-creation completes with legible text, and the game moves on to the Splatoon 2 intro
-screen.
+creation completes with legible text, the game plays its intro cutscene and reaches the
+post-intro tutorial screen — in English, the language the port now reports to the game.
 
-![PlayerMake character creation, text legible](docs/images/boot-text-legible.png)
+![PlayerMake character creation, eye colour step](docs/images/boot-playermake-en.png)
 
-*PlayerMake, hair step. Text is legible now (`ヘアスタイルは どれにする？`): the port stores the
+*PlayerMake, eye colour step ("Pick an eye color!"). Text is legible because the port stores the
 CPU-written R8 glyph atlas as packed rows instead of untiling it. The two Inkling models are
 still missing from the colour pass.*
 
 ![Character confirmation](docs/images/boot-confirm-text.png)
 
-*The confirmation page, `この設定でオッケー？` (the small bottom-left hint is still garbled —
-a second, smaller atlas).*
+*The confirmation page, captured before the language fix (`この設定でオッケー？`); the small
+bottom-left hint is still garbled — a second, smaller atlas.*
 
-Two fixes took the port from a boot fatal to this point:
+Three fixes took the port from a boot fatal to this point:
 
 - **Dropped tail call.** `Cui::Page::findPartsControl` (`0x20BD74`) ends in
   `b 0x20CF60`, a tail call into `Control::List::searchAs<PartsCtrl>`. The recompiler emitted
@@ -43,15 +43,23 @@ Two fixes took the port from a boot fatal to this point:
   (the `NX_DUMP_ALPHA` dump of the uploaded atlas showed no glyph shapes); treating stride 0 as
   `row_stride = width` and widening R8 → RGBA8 `(255,255,255,R)` made the labels legible.
   Patch: [tools/patches/patch-alpha-atlas.py](tools/patches/patch-alpha-atlas.py).
+- **The reported language was byte-swapped.** `nn::settings::LanguageCode` is a `char[8]`,
+  but the port wrote each tag as a number with its first character in the high byte, so
+  `"en-US"` landed in memory as `"SU-ne"`. The game matched no language and fell back to
+  Japanese (`/Message/CommonMsg_JPja.szs`), even though `nn::oe::GetDesiredLanguage` already
+  answered `en-US` (that path `memcpy`s the tag). The codes are now derived from their string
+  literals at compile time and the game loads `/Message/CommonMsg_USen.szs`.
+  Patch: [tools/patches/patch-language-code.py](tools/patches/patch-language-code.py).
 
 Open:
 
 - **Characters.** Submitted every frame as fully skinned draws with real model textures, and
   the mask pass rasterises them (verified by target snapshots), but the visible colour pass
   leaves no pixels.
-- **Tutorial text.** `Game::TutorialGuideMsgPage` lays out a second font face and crashes in
-  `nn::font::TextureCache::GetInnerFontFace` → `FSS_set_cmap` with a null face (data address
-  `0x20`).
+- **Post-intro UI text.** The first screen after the intro lays out a text box at font size 100
+  and crashes in `nn::font::TextureCache::CalculateCharWidth` → `FSS_set_scale` →
+  `get_scale_inputs` (data address `0x20`): the FSS font object handed to the scaler is not a
+  valid face. Until this is fixed the game does not reach the title.
 
 ## Start here
 
