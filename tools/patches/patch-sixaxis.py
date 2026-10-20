@@ -53,13 +53,22 @@ void GetSixAxisSensorHandles(CPU& c) {  // (SixAxisSensorHandle*, int, const u32
     const uint64_t out = c.x[0];
     const int count = int(uint32_t(c.x[1]));
     const uint32_t id = ld<uint32_t>(c.x[2]);
-    static int logs = 0;
-    if (sixaxis_on() && logs++ < 4) log("hid: six-axis handles id %u count %d", id, count);
-    for (int i = 0; i < count && i < 8 && sixaxis_on(); i++) {
-        st<uint32_t>(out + 8 * i, id);
-        st<uint32_t>(out + 8 * i + 4, uint32_t(i));
+    const uint32_t style = uint32_t(c.x[3]);
+    // The API returns the number of handles written, and sead stores that as its sensor count: returning
+    // 0 (a Result) made the game think the controller had no sensor at all and never read a state.
+    // JoyDual has two sensors (left/right); every other style has one.
+    int n = 0;
+    if (sixaxis_on()) {
+        n = style ? ((style & 2u) ? 2 : 1) : 0;
+        if (n > count) n = count;
+        for (int i = 0; i < n; i++) {
+            st<uint32_t>(out + 8 * i, id);
+            st<uint32_t>(out + 8 * i + 4, uint32_t(i));
+        }
     }
-    c.x[0] = 0;
+    static int logs = 0;
+    if (logs++ < 4) log("hid: six-axis handles id %u style %#x count %d -> %d", id, style, count, n);
+    c.x[0] = uint64_t(n);
 }
 
 void StartSixAxisSensor(CPU& c) {  // (const SixAxisSensorHandle&)
