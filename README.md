@@ -12,32 +12,46 @@ used to establish it, and how far the port has got.
 
 ## Current state
 
-The recompiled port runs the game's own code on Vulkan on Windows and reaches the
-in-game UI: PlayerMake character creation, the title screen and the tutorial.
+The recompiled port runs the game's own code on Vulkan on Windows. PlayerMake character
+creation completes with legible text, and the game moves on to the Splatoon 2 intro
+screen.
 
-![PlayerMake character creation](docs/images/frame_00200.png)
+![PlayerMake character creation, text legible](docs/images/boot-text-legible.png)
 
-*PlayerMake, hair step. The room, the ink-tank panel, the hair previews, the squid cursor
-and the six step dots all render. The two Inkling models and every UI label are missing.*
+*PlayerMake, hair step. Text is legible now (`ヘアスタイルは どれにする？`): the port stores the
+CPU-written R8 glyph atlas as packed rows instead of untiling it. The two Inkling models are
+still missing from the colour pass.*
 
-![Title screen](docs/images/boot-title.png)
+![Character confirmation](docs/images/boot-confirm-text.png)
 
-*The title screen after PlayerMake. Artwork and layout draw; text still does not.*
+*The confirmation page, `この設定でオッケー？` (the small bottom-left hint is still garbled —
+a second, smaller atlas).*
 
-Both cases are tracked to the renderer, not to game logic:
+Two fixes took the port from a boot fatal to this point:
 
-![Text after the tiled alpha-from-R atlas fix](docs/images/boot-text-visible.png)
+- **Dropped tail call.** `Cui::Page::findPartsControl` (`0x20BD74`) ends in
+  `b 0x20CF60`, a tail call into `Control::List::searchAs<PartsCtrl>`. The recompiler emitted
+  the two instructions before it and no call, so the function returned
+  `page->controls + 0x38` — a list pointer — to callers that expect a `PartsCtrl*`;
+  `Cui::CustomizePartsSet::onInitialize` then called `(*ctrl)[0]` through it and died with
+  `call to 50c12201b8` (heap) at boot. A scan of every generated function in every module for a
+  final `b` to another function with no emitted call found **this as the only case in the whole
+  game**. Patch: [tools/patches/patch-tailcall-20bd74.py](tools/patches/patch-tailcall-20bd74.py).
+- **The glyph atlas is CPU-written.** The 2048×2048 R8 atlas is created with `stride 0` (the
+  builder treats it as tiled), swizzle (R,1,1,1) and `alpha_from_r`, but the game fills it from
+  the CPU, so its guest memory is packed `width`-byte rows. Untiling it produced streak noise
+  (the `NX_DUMP_ALPHA` dump of the uploaded atlas showed no glyph shapes); treating stride 0 as
+  `row_stride = width` and widening R8 → RGBA8 `(255,255,255,R)` made the labels legible.
+  Patch: [tools/patches/patch-alpha-atlas.py](tools/patches/patch-alpha-atlas.py).
 
-*After fixing the tiled alpha-from-R atlas upload: text now reaches the screen. The glyphs are
-still garbled because the atlas content itself is stale — the scalable-font rasteriser never
-runs (see below).*
+Open:
 
-- **Text** is set correctly (`nn::ui2d::TextBox::SetString` receives every string, e.g.
-  `どっちか 選ぶんだ！`, `ガール`, `ボーイ`), but the 2048×2048 R8 font glyph atlas is
-  never filled, so every glyph samples an empty texture.
-- **Characters** are submitted every frame as fully skinned draws with real model
-  textures, and the mask pass rasterises them (verified by target snapshots), but the
-  visible colour pass leaves no pixels.
+- **Characters.** Submitted every frame as fully skinned draws with real model textures, and
+  the mask pass rasterises them (verified by target snapshots), but the visible colour pass
+  leaves no pixels.
+- **Tutorial text.** `Game::TutorialGuideMsgPage` lays out a second font face and crashes in
+  `nn::font::TextureCache::GetInnerFontFace` → `FSS_set_cmap` with a null face (data address
+  `0x20`).
 
 ## Start here
 

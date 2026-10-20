@@ -1,7 +1,7 @@
 # Recompiled port — green boot: display loop and real frames
 
 This is the state of the recompiled PC port (`~/sp2port`, runtime under
-`runtime/src/`) as of 2026-10-19. It is a living log: each row of the ladder was
+`runtime/src/`) as of 2026-10-20. It is a living log: each row of the ladder was
 a real fatal, diagnosed from the guest's own stack and fixed in the runtime.
 
 The port now enters `nnMain`, initialises NVN/sead graphics, HID, settings, the
@@ -14,6 +14,81 @@ target (host SIGFPE) and command lists dropped by the port's lifetime heuristic
 (which made every frame black); both are described below. Section 10 adds a
 native Windows build of the same sources, so the port also runs on the host GPU
 (RTX 3060, 60 fps) instead of lavapipe.
+
+## 2026-10-20: legible text, and the boot fatal explained
+
+Two fixes moved the port from "boots but every label is a white blob, then a fatal in
+PlayerMake" to a completed character-creation flow with readable Japanese text and the
+Splatoon 2 intro screen.
+
+### The boot fatal was a dropped tail call, not a vtable bug
+
+Symptom:
+
+```
+FATAL: call to 50c12201b8 (50c12201b8), lr main+1d95d4
+       (_ZN3Cui17CustomizePartsSet12onInitializeEPKv+a4)
+```
+
+`onInitialize` (`0x1D9530`) calls `Cui::Page::findPartsControl` (`0x20BD74`) for each of
+`/L_ItemBtn_00..17`, then calls `(*ctrl)[0](ctrl, &expected_type)`. Runtime probes showed
+the returned object was `page + 0x3f0 → +0x38` — the control **list**, not a control —
+whose first word is a heap pointer, hence the "vtable" jump into the heap.
+
+`findPartsControl` is three guest instructions:
+
+```asm
+ldr x8, [x0, #0x3f0]
+add x0, x8, #0x38
+b   0x20cf60        ; Control::List::searchAs<PartsCtrl>
+```
+
+The recompiler emitted the first two and **dropped the `b`**, so the function returned
+the list pointer as if it were a found control. `searchAs` never ran, so its own type
+check never rejected the object. Heap layout decided the failure mode: when the list's
+first word happened to look like a callable address the port died; in other builds the
+check returned false and every parts control was silently missing from the UI.
+
+A scan of every generated function in every module (final guest instruction is an
+unconditional `b` to another function, but the generated body has no call to it) finds
+**this as the only case in the whole game**:
+
+```bash
+python3 tools/rework/find-dropped-tailcalls.py
+# main: functions ending in b 20074, dropped 1
+#    20BD74 .. b at 20BD7C -> 20CF60
+```
+
+The fix re-adds the call (`tools/patches/patch-tailcall-20bd74.py`); it is a tail call,
+so not touching `x30` is correct — the emulated callee returns to the same guest caller.
+
+### The glyph atlas is CPU-written: keep its rows packed
+
+The font atlas is a 2048×2048 R8 texture with `stride 0` (builder: tiled), swizzle
+`02010101` = (R,1,1,1) and `alpha_from_r`. Widening R8 → RGBA8 made text *appear* but
+garbled; the `NX_DUMP_ALPHA` dump of the uploaded atlas (alpha shown as grey) was
+horizontal streak noise — the untiled interpretation of memory that the game writes as
+plain rows.
+
+The CPU writes the atlas (nothing uploads it: no draw, copy or `nvnTextureWriteTexels`
+targets the pool), so `stride 0` means "packed rows of `width` bytes" here, not tiling.
+`row_stride = stride ? stride : width` plus the (255,255,255,R) widening makes every
+label legible (`tools/patches/patch-alpha-atlas.py`).
+
+![PlayerMake hair step with legible text](docs/images/boot-text-legible.png)
+
+*After both fixes: `ヘアスタイルは どれにする？` ("Which hairstyle?") is readable, and the
+flow advances through the six PlayerMake steps.*
+
+![Confirmation page](docs/images/boot-confirm-text.png)
+
+*`この設定でオッケー？` — the confirmation page. The small bottom-left hint still comes from a
+second, smaller atlas that is not covered by this fix.*
+
+Remaining, in order: the Inkling models are still absent from the colour pass; the
+tutorial's `TutorialGuideMsgPage` crashes when it lays out a second font face
+(`GetInnerFontFace` → `FSS_set_cmap`, null face at `0x20`); and the port currently stays
+on the Splatoon 2 intro screen after confirming the character.
 
 ## Running
 
