@@ -37,6 +37,28 @@ NEW1 = """    c.x[19] = uint64_t(c.x[0]); // mov x19, x0
 OLD2 = """    c.x[30] = NXB + 0x186514ull; sdk_002C971C(c); // bl #0x2c971c
     if (uint32_t(c.x[0]) == 0) goto L_18652C; // cbz w0, #0x18652c
 """
+
+# The glyph-insert loop reloads [font+0x10] on every pass (after the entry check passed) and reads
+# [face+0x20].  A font freed by another thread during the scene load left it zero and the game died
+# at data address 0x20 in FSS_set_scale's loop (fss15, CreateKerning -> FSS_set_scale+0xd8).  Return
+# the recorded error instead.
+OLD3 = """    { uint64_t a = c.x[19] + 0x30ull; nx::st<uint64_t>(a, uint64_t(c.x[27])); nx::st<uint64_t>(a + 8, uint64_t(c.x[0])); } // stp x27, x0, [x19, #0x30]
+    { uint64_t a = c.x[1] + 0x20ull; c.x[9] = uint32_t(nx::ld<uint16_t>(a)); } // ldrh w9, [x1, #0x20]
+"""
+NEW3 = """    { uint64_t a = c.x[19] + 0x30ull; nx::st<uint64_t>(a, uint64_t(c.x[27])); nx::st<uint64_t>(a + 8, uint64_t(c.x[0])); } // stp x27, x0, [x19, #0x30]
+    // PATCH-FSS-NULL: the loop reloads the face after inserting a glyph; if another thread freed the
+    // font, the ldrh below reads address 0x20.  Leave with the error already recorded.
+    if (c.x[1] == 0) {
+        static int fss_null_loop_logs = 0;
+        if (fss_null_loop_logs < 8) {
+            fss_null_loop_logs++;
+            nx::log("FSSNULL set_scale loop font=%llx insert=%llu face_at_entry=%llx",
+                    (unsigned long long)c.x[19], (unsigned long long)c.x[28], (unsigned long long)fss_face0);
+        }
+        goto L_186810;
+    }
+    { uint64_t a = c.x[1] + 0x20ull; c.x[9] = uint32_t(nx::ld<uint16_t>(a)); } // ldrh w9, [x1, #0x20]
+"""
 NEW2 = """    c.x[30] = NXB + 0x186514ull; sdk_002C971C(c); // bl #0x2c971c
     if (uint32_t(c.x[0]) == 0) { // cbz w0, #0x18652c
         // PATCH-FSS-NULL: the guest reloads [font+0x10] here and reads [face+0x20] with no null check.
@@ -60,16 +82,23 @@ def main():
         if "PATCH-FSS-NULL" not in t:
             print("nothing to restore")
             return
-        t = t.replace(NEW0, OLD0, 1).replace(NEW1, OLD1, 1).replace(NEW2, OLD2, 1)
+        t = t.replace(NEW0, OLD0, 1).replace(NEW1, OLD1, 1).replace(NEW2, OLD2, 1).replace(NEW3, OLD3, 1)
         open(F, "w", encoding="utf-8", newline="").write(t)
         print("restored")
         return
     if "PATCH-FSS-NULL" in t:
-        print("already applied")
+        if NEW3 in t:
+            print("already applied")
+            return
+        if OLD3 not in t:
+            raise SystemExit("loop anchor not found: " + F)
+        t = t.replace(OLD3, NEW3, 1)
+        open(F, "w", encoding="utf-8", newline="").write(t)
+        print("patched loop guard in", F)
         return
-    if OLD0 not in t or OLD1 not in t or OLD2 not in t:
+    if OLD0 not in t or OLD1 not in t or OLD2 not in t or OLD3 not in t:
         raise SystemExit("pattern not found: " + F)
-    t = t.replace(OLD0, NEW0, 1).replace(OLD1, NEW1, 1).replace(OLD2, NEW2, 1)
+    t = t.replace(OLD0, NEW0, 1).replace(OLD1, NEW1, 1).replace(OLD2, NEW2, 1).replace(OLD3, NEW3, 1)
     open(F, "w", encoding="utf-8", newline="").write(t)
     print("patched", F)
 

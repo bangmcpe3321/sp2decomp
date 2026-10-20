@@ -13,9 +13,12 @@ used to establish it, and how far the port has got.
 ## Current state
 
 The recompiled port runs the game's own code on Vulkan on Windows. PlayerMake character
-creation completes with legible text, the game plays its intro cutscene, shows the
-controller-orientation screen and reaches the title screen — in English, the language the
-port now reports to the game.
+creation completes with legible text, the intro cutscene plays, and the first-launch controller
+tutorial now advances through its steps: the controller diagram, an aiming/target step, and the
+"Shoot with ZR" step have all been captured, and the page reacts to the control each step asks
+for. A scripted input sweep walks it forward; motion aiming still reads a flat six-axis state.
+The guide-banner sentences are still scrambled (one font face), so the steps are identified by
+their button icons, highlighted controls and layout animations.
 
 ![PlayerMake character creation, eye colour step](docs/images/boot-playermake-en.png)
 
@@ -27,6 +30,18 @@ still missing from the colour pass.*
 
 *The confirmation page, captured before the language fix (`この設定でオッケー？`); the small
 bottom-left hint is still garbled — a second, smaller atlas.*
+
+![The first-launch controller tutorial, "Shoot with ZR"](docs/images/tutorial-zr-step.png)
+
+*The "Shoot with ZR" step. The Joy-Con's ZR is lit orange and the prompt badge reads ZR; the
+guide banners are drawn by `TutorialGuideMsgPage`. Their sentences are still scrambled (a font
+face), but the button prompt itself is a layout part and is correct.*
+
+![The aiming step](docs/images/tutorial-aim-step.png)
+
+*The step before it: a target ring above the controller diagram with the aim reticle in the
+middle. The controller diagram, the button highlights and the animations are the game's own
+layout data, rendered correctly.*
 
 Four fixes took the port from a boot fatal to this point:
 
@@ -58,16 +73,41 @@ Four fixes took the port from a boot fatal to this point:
   error (`0x131`) instead, so the caller falls back to the unscaled glyph instead of crashing.
   Patch: [tools/patches/patch-fss-null-face.py](tools/patches/patch-fss-null-face.py).
 
+### Memory, input and the tutorial
+
+- **Six-axis sensor HLE.** `GetSixAxisSensorHandles` used to leave the output untouched and
+  `GetSixAxisSensorStates` returned 0 without writing a state, so sead's six-axis addon had no
+  orientation. The HLE now fills two handles and reports a controller held level (identity
+  direction, gravity on -Z, 1/60 s delta). The game requests the handles but does not read
+  states yet; motion aiming will use them. Patch:
+  [tools/patches/patch-sixaxis.py](tools/patches/patch-sixaxis.py).
+- **R11G11B10F stored natively.** NVN format `0x3f` was always widened to RGBA16F off Android,
+  doubling every HDR load/store/sample (636 MB of 1020 MB live images at the title on a 6 GB
+  laptop GPU, and it ran out of device memory at the tutorial). The port now uses
+  `B10G11R11_UFLOAT_PACK32` when the device can render, blend, filter and copy it, halving
+  those images (`NX_R11G11B10_EMULATE=1` restores the old behaviour). At the tutorial the live
+  set went from 5.6 GB to 1.2-1.7 GB with no failed allocations. Patch:
+  [tools/patches/patch-r11-native.py](tools/patches/patch-r11-native.py).
+- **Image accounting.** A live `VkDeviceMemory` histogram by NVN format is logged with the
+  60-frame report, which is how the R11G11B10F and D32F sets were sized. Patch:
+  [tools/patches/patch-imgstats.py](tools/patches/patch-imgstats.py).
+- **Pipelines.** The pipeline cache is capped (`NX_PIPE_CAP`, default 2048) with deferred
+  destruction; the tutorial's UI reaches about 2100 live pipelines, so the cap is a band-aid
+  rather than a fix, and pipeline memory is a large part of the 6 GB budget.
+
 Open:
 
 - **Characters.** Submitted every frame as fully skinned draws with real model textures, and
   the mask pass rasterises them (verified by target snapshots), but the visible colour pass
   leaves no pixels.
-- **Banner text at size 100.** The controller screen's two green text bands (font size 100) are
-  drawn as mirrored, stretched letter fragments although the same pipeline renders size ~40
-  text correctly, and the metrics it asks for are plausible (advances of 0.47–0.72 em). The
-  bitmap and the quad/UV therefore disagree; the next diagnostic logs and dumps every distinct
-  R8 atlas upload (packed and untiled) to see which layout the game wrote.
+- **Tutorial banner text.** The guide-message bands (the green/red speech shapes) draw their
+  sentences as scrambled glyphs although the same font renders PlayerMake's text correctly.
+  `FSS_set_scale` loses its face pointer during `get_scale_inputs` on the title-to-tutorial
+  transition (`FSSNULL set_scale ...`, confirmed with `nx::describe`: the callee is
+  `sdk+1b71bc get_scale_inputs`), and that call rebuilds the glyph slot table, so a face that
+  vanishes there is the strongest suspect. The tutorial still advances: its steps are
+  identified by icons and highlighted buttons, and the guide page's strings are logged by
+  [tools/patches/patch-guide-text.py](tools/patches/patch-guide-text.py).
 - **Loading is slow.** The "now loading" screen with the ink spinner runs at 0.8–6 fps because
   the game's own texture registration and decompression work runs as recompiled guest code;
   once loading finishes the title screen runs at 33–58 fps.
