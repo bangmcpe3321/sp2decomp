@@ -86,9 +86,9 @@ void GetSixAxisSensorStates(CPU& c) {  // (SixAxisSensorState*, int, const SixAx
         if (reads <= 3 || reads % 600 == 0)
             log("hid: six-axis states read %llu id %u sensor %u count %d", (unsigned long long)reads, ld<uint32_t>(c.x[2]),
                 ld<uint32_t>(c.x[2] + 4), count);
-        for (int i = 0; i < count && i < 8; i++) fill_sixaxis_state(out + 0x60 * i);
+        for (int i = 0; i < count && i < 64; i++) fill_sixaxis_state(out + 0x60 * i);
     } else {
-        std::memset(reinterpret_cast<void*>(out), 0, size_t(count < 8 ? count : 8) * 0x60);
+        std::memset(reinterpret_cast<void*>(out), 0, size_t(count < 64 ? count : 64) * 0x60);
     }
     c.x[0] = 0;
 }

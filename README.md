@@ -14,11 +14,25 @@ used to establish it, and how far the port has got.
 
 The recompiled port runs the game's own code on Vulkan on Windows. PlayerMake character
 creation completes with legible text, the intro cutscene plays, and the first-launch controller
-tutorial now advances through its steps: the controller diagram, an aiming/target step, and the
-"Shoot with ZR" step have all been captured, and the page reacts to the control each step asks
-for. A scripted input sweep walks it forward; motion aiming still reads a flat six-axis state.
-The guide-banner sentences are still scrambled (one font face), so the steps are identified by
-their button icons, highlighted controls and layout animations.
+tutorial runs: the controller page renders whole (the Pro Controller diagram, the Joy-Con photo,
+the banner shapes, the button prompts), the guide sentences read correctly, and the aim step
+passes — the game answers "Just like that!" and moves on to "Shoot with ZR!". Motion aiming reads
+a swept six-axis state (`NX_SIXAXIS_WOBBLE=1`), and a scripted input sweep walks the steps
+forward. About one boot in three stalls in the UI job manager at the character→tutorial
+transition (see Open).
+
+![The tutorial aim step, passed](docs/images/tutorial-aim-legible.png)
+
+*The aim step. The guide bands read "Aim at the [balloon] balloon!" and "Target the [balloon]
+balloon with the [reticle] reticle!"; `Just like that!` is the game's answer once the swept
+six-axis state brings the reticle onto the balloon. The bands are drawn by
+`TutorialGuideMsgPage` with the CPU-written size-100 BlitzBold glyph atlas, which the port now
+re-uploads when its bytes change.*
+
+![The first-launch controller tutorial, "Shoot with ZR"](docs/images/tutorial-zr-step.png)
+
+*The next step: "Shoot with [ZR]!" with "Tilt the controller to aim!" underneath; the Joy-Con's
+ZR is lit orange and the prompt badge reads ZR.*
 
 ![PlayerMake character creation, eye colour step](docs/images/boot-playermake-en.png)
 
@@ -31,19 +45,7 @@ still missing from the colour pass.*
 *The confirmation page, captured before the language fix (`この設定でオッケー？`); the small
 bottom-left hint is still garbled — a second, smaller atlas.*
 
-![The first-launch controller tutorial, "Shoot with ZR"](docs/images/tutorial-zr-step.png)
-
-*The "Shoot with ZR" step. The Joy-Con's ZR is lit orange and the prompt badge reads ZR; the
-guide banners are drawn by `TutorialGuideMsgPage`. Their sentences are still scrambled (a font
-face), but the button prompt itself is a layout part and is correct.*
-
-![The aiming step](docs/images/tutorial-aim-step.png)
-
-*The step before it: a target ring above the controller diagram with the aim reticle in the
-middle. The controller diagram, the button highlights and the animations are the game's own
-layout data, rendered correctly.*
-
-Four fixes took the port from a boot fatal to this point:
+Six fixes took the port from a boot fatal to this point:
 
 - **Dropped tail call.** `Cui::Page::findPartsControl` (`0x20BD74`) ends in
   `b 0x20CF60`, a tail call into `Control::List::searchAs<PartsCtrl>`. The recompiler emitted
@@ -59,6 +61,14 @@ Four fixes took the port from a boot fatal to this point:
   (the `NX_DUMP_ALPHA` dump of the uploaded atlas showed no glyph shapes); treating stride 0 as
   `row_stride = width` and widening R8 → RGBA8 `(255,255,255,R)` made the labels legible.
   Patch: [tools/patches/patch-alpha-atlas.py](tools/patches/patch-alpha-atlas.py).
+- **The glyph atlas was uploaded only once.** The size-100 BlitzBold atlas is also written by the
+  CPU through mapped memory, but the font engine never reports that range to
+  `nvnMemoryPoolFlushMappedRange` (the 32 KB+ flushes the port sees belong to other pools), so the
+  image kept the letters of whatever face or size had filled those cells first — clean glyphs,
+  wrong text. `NX_ATLAS_REFRESH=1` hashes one sampled byte in 61 of each sampled R8-read-as-alpha
+  image once a frame and re-uploads the whole image when the hash changes; the tutorial's guide
+  sentences now read correctly and the upload cost is paid only on the frames the font engine
+  rasterises glyphs. Patch: [tools/patches/patch-atlas-refresh.py](tools/patches/patch-atlas-refresh.py).
 - **The reported language was byte-swapped.** `nn::settings::LanguageCode` is a `char[8]`,
   but the port wrote each tag as a number with its first character in the high byte, so
   `"en-US"` landed in memory as `"SU-ne"`. The game matched no language and fell back to
@@ -72,14 +82,25 @@ Four fixes took the port from a boot fatal to this point:
   at that point the game died at data address `0x20`. The patch honours FSS's own null-face
   error (`0x131`) instead, so the caller falls back to the unscaled glyph instead of crashing.
   Patch: [tools/patches/patch-fss-null-face.py](tools/patches/patch-fss-null-face.py).
+- **Whole-target clears erased UI panels.** NVN clips a clear to the bound scissor. The port
+  ignored the scissor (behind `NX_CLEARS_SCISSOR=1`) and cleared the whole attachment instead, so
+  a clear meant for one UI panel wiped the rest of the UI image. On the first-launch tutorial
+  this removed the Pro Controller diagram and other layout parts, leaving only the photo, banners
+  and arrows. Honouring the scissor by default restores the whole page. `NX_CLEARS_SCISSOR=0`
+  restores the old behaviour for bisecting (the port once saw a course break with scissored
+  clears, docs/nvn/DEBUG.md #52).
+  Patch: [tools/patches/patch-clears-scissor-default.py](tools/patches/patch-clears-scissor-default.py).
 
 ### Memory, input and the tutorial
 
-- **Six-axis sensor HLE.** `GetSixAxisSensorHandles` used to leave the output untouched and
-  `GetSixAxisSensorStates` returned 0 without writing a state, so sead's six-axis addon had no
-  orientation. The HLE now fills two handles and reports a controller held level (identity
-  direction, gravity on -Z, 1/60 s delta). The game requests the handles but does not read
-  states yet; motion aiming will use them. Patch:
+- **Six-axis sensor HLE.** `GetSixAxisSensorHandles` used to leave the output untouched, and it
+  returned 0 where the API returns the number of handles written. `sead::NinJoyNpadDevice::calc`
+  stores that value as its sensor count, so the game concluded the controller had no sensor and
+  never called `StartSixAxisSensor` or `GetSixAxisSensorStates`. With the count returned, the game
+  starts sensor 0 and reads 16 states every frame; the HLE reports a controller held level
+  (identity direction, gravity on -Z, 1/60 s delta). `NX_SIXAXIS_WOBBLE=1`
+  ([patch-sixaxis-wobble.py](tools/patches/patch-sixaxis-wobble.py)) adds a slow pitch/yaw sweep
+  for the tutorial's "Tilt the controller to aim!" step. Patch:
   [tools/patches/patch-sixaxis.py](tools/patches/patch-sixaxis.py).
 - **R11G11B10F stored natively.** NVN format `0x3f` was always widened to RGBA16F off Android,
   doubling every HDR load/store/sample (636 MB of 1020 MB live images at the title on a 6 GB
@@ -97,17 +118,19 @@ Four fixes took the port from a boot fatal to this point:
 
 Open:
 
+- **UI job stall at the character→tutorial transition.** About one boot in three the game stops
+  advancing at frame ~2933–2942 with no render thread activity: the main thread waits in
+  `Lp::UI::Impl::JobMgr::endRun` on a light event while a UI job worker is still inside
+  `nn::font::TextureCache::CalculateKerning` → `FSS_set_scale`, so the job never completes.
+  Re-running the same script usually passes. The stack is in the font code path whose atlas is
+  handled by the atlas-refresh fix above, so the face/glyph-cache handling is the first suspect.
 - **Characters.** Submitted every frame as fully skinned draws with real model textures, and
   the mask pass rasterises them (verified by target snapshots), but the visible colour pass
   leaves no pixels.
-- **Tutorial banner text.** The guide-message bands (the green/red speech shapes) draw their
-  sentences as scrambled glyphs although the same font renders PlayerMake's text correctly.
-  `FSS_set_scale` loses its face pointer during `get_scale_inputs` on the title-to-tutorial
-  transition (`FSSNULL set_scale ...`, confirmed with `nx::describe`: the callee is
-  `sdk+1b71bc get_scale_inputs`), and that call rebuilds the glyph slot table, so a face that
-  vanishes there is the strongest suspect. The tutorial still advances: its steps are
-  identified by icons and highlighted buttons, and the guide page's strings are logged by
-  [tools/patches/patch-guide-text.py](tools/patches/patch-guide-text.py).
+- **Device memory.** On the 6 GB laptop GPU the load still briefly peaks above the R11G11B10F
+  savings: several runs log `vkAllocateMemory failed (-2)` around the character customisation
+  load (live images 2.6 GB at frame 233) and either recover or stall. The live set fell to
+  1.2–1.7 GB once the tutorial is up, so the peak, not the steady state, is the problem.
 - **Loading is slow.** The "now loading" screen with the ink spinner runs at 0.8–6 fps because
   the game's own texture registration and decompression work runs as recompiled guest code;
   once loading finishes the title screen runs at 33–58 fps.
@@ -157,7 +180,7 @@ Open:
 | Subsystem decomposition | Done (55 namespaces) |
 | Engine & middleware identification | Done |
 | **Function-body decompilation** | **Not done** — see [Limitations](#limitations) |
-| **Recompiled PC port** | Boots to the in-game UI: `RootTask::prepare_`, display loop, PlayerMake character creation, then the title and tutorial screens — [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md). Two rendering bugs are open: the 3D characters are submitted but do not appear in the scene, and UI text is set but draws nothing (the glyph atlas stays empty). |
+| **Recompiled PC port** | Boots to the in-game UI: `RootTask::prepare_`, display loop, PlayerMake character creation, then the title and tutorial screens - [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md). The first-launch tutorial advances past the aim step with legible guide text. Two rendering bugs are open: the 3D characters are submitted but do not appear in the scene, and about one boot in three stalls at the character→tutorial UI job transition. |
 
 Everything below is static analysis of the shipped binary unless a section says
 otherwise; runtime findings from the port are labelled as such. Behaviour is only

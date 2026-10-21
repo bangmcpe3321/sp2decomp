@@ -55,12 +55,27 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run-input.ps1 `
 ```
 
 `-Script` is a frame-indexed button list (`A`, `B`, `X`, `Y`, `Plus`, `Minus`, `L`, `R`,
-`Up`, `Down`, `Left`, `Right`). The runner sets `NX_HEADLESS=1`, `NX_DATA_ROOT=private`,
-`NX_DUMP_FRAMES=100` and `NX_FENCE_TIMEOUT_MS=600000`, kills stray `sp2.exe` processes,
-waits for the address space to be released and writes `private/frames/NNNNN.ppm`.
+`ZL`, `ZR`, `StickL`, `StickR`, `Up`, `Down`, `Left`, `Right`; the directions also push the left
+stick, and `RUp`/`RDown`/`RLeft`/`RRight` push the right stick). The runner sets `NX_HEADLESS=1`,
+`NX_DATA_ROOT=private`, `NX_DUMP_FRAMES`, `NX_ATLAS_REFRESH=1` (re-upload a CPU-written glyph
+atlas when it changes), `NX_SIXAXIS_WOBBLE=1` (a controller being tilted), and
+`NX_FENCE_TIMEOUT_MS=120000`; it kills stray `sp2.exe` processes, waits for the address space to
+be released, writes `private/frames/NNNNN.ppm`, and restarts the run if the alias reservation
+fails or the log stops growing for 90 s.
+
+The first-launch tutorial sweep used for the current screenshots:
+
+```powershell
+$s = '600:A,800:A,1000:A,1200:A,1400:A,2400:A,2500:Right,2600:A,2700:Right,2800:A,3100:A'
+for ($f = 4300; $f -le 12000; $f += 120) { $s += ",${f}:ZR" }
+for ($f = 4400; $f -le 12000; $f += 240) { $s += ",${f}:Y" }
+for ($f = 4600; $f -le 12000; $f += 240) { $s += ",${f}:A" }
+powershell -NoProfile -ExecutionPolicy Bypass -File .\run-input.ps1 -Seconds 700 -Tag aim `
+  -DumpEvery 100 -Script $s
+```
 
 If the log starts with `cannot reserve alias ... error 487`, a previous process has not
-exited yet: kill `sp2.exe`, wait ~20 s and run again.
+exited yet: kill `sp2.exe`, wait ~20 s and run again (the script now retries this itself).
 
 ## Useful environment variables
 
@@ -74,6 +89,8 @@ exited yet: kill `sp2.exe`, wait ~20 s and run again.
 | `NX_TRACE_TARGET` / `NX_TRACE_FS_HASH` | restrict tracing to a target or fragment shader |
 | `NX_TRACE_GLYPHS` | glyph records, samplers and font-atlas probes |
 | `NX_MEM_LIMIT_GB` | raise the default 8 GB guest-memory guard |
+| `NX_ATLAS_REFRESH` | re-upload a sampled R8-read-as-alpha glyph atlas when its bytes change (the runner sets it) |
+| `NX_SIXAXIS_WOBBLE` | report a controller being tilted (the runner sets it for the tutorial) |
 | `NX_TEXDBG`, `NX_TEXTDBG`, `NX_TRACE_UPLOADS` | port-side diagnostics used while debugging text rendering |
 
 ## Converting dumps
