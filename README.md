@@ -65,10 +65,10 @@ Six fixes took the port from a boot fatal to this point:
   CPU through mapped memory, but the font engine never reports that range to
   `nvnMemoryPoolFlushMappedRange` (the 32 KB+ flushes the port sees belong to other pools), so the
   image kept the letters of whatever face or size had filled those cells first — clean glyphs,
-  wrong text. `NX_ATLAS_REFRESH=1` hashes one sampled byte in 61 of each sampled R8-read-as-alpha
-  image once a frame and re-uploads the whole image when the hash changes; the tutorial's guide
-  sentences now read correctly and the upload cost is paid only on the frames the font engine
-  rasterises glyphs. Patch: [tools/patches/patch-atlas-refresh.py](tools/patches/patch-atlas-refresh.py).
+  wrong text. The port hashes one sampled byte in 61 of each sampled R8-read-as-alpha image once a
+  frame and re-uploads the whole image when the hash changes; the tutorial's guide sentences now
+  read correctly and the upload cost is paid only on the frames the font engine rasterises glyphs
+  (`NX_ATLAS_REFRESH=0` disables). Patch: [tools/patches/patch-atlas-refresh.py](tools/patches/patch-atlas-refresh.py).
 - **The reported language was byte-swapped.** `nn::settings::LanguageCode` is a `char[8]`,
   but the port wrote each tag as a number with its first character in the high byte, so
   `"en-US"` landed in memory as `"SU-ne"`. The game matched no language and fell back to

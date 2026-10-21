@@ -89,7 +89,7 @@ exited yet: kill `sp2.exe`, wait ~20 s and run again (the script now retries thi
 | `NX_TRACE_TARGET` / `NX_TRACE_FS_HASH` | restrict tracing to a target or fragment shader |
 | `NX_TRACE_GLYPHS` | glyph records, samplers and font-atlas probes |
 | `NX_MEM_LIMIT_GB` | raise the default 8 GB guest-memory guard |
-| `NX_ATLAS_REFRESH` | re-upload a sampled R8-read-as-alpha glyph atlas when its bytes change (the runner sets it) |
+| `NX_ATLAS_REFRESH` | re-upload a sampled R8-read-as-alpha glyph atlas when its bytes change (on by default; `0` disables) |
 | `NX_SIXAXIS_WOBBLE` | report a controller being tilted (the runner sets it for the tutorial) |
 | `NX_TEXDBG`, `NX_TEXTDBG`, `NX_TRACE_UPLOADS` | port-side diagnostics used while debugging text rendering |
 

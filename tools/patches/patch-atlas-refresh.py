@@ -10,7 +10,7 @@ With NX_ATLAS_REFRESH=1 a sampled R8-read-as-alpha image is checked once a frame
 the guest bytes (one byte in 61) is compared with the previous one, and a change marks the whole image
 for upload.  The upload therefore happens only on the frames the font engine actually rasterised
 glyphs, not every frame (a full 2048x2048 RGBA upload per frame cost about half the frame rate).
-Default off while this is being measured; the launcher scripts set it.
+On by default; `NX_ATLAS_REFRESH=0` turns it off.
 
 runtime/src/nvn/nvn_pipeline.cpp; idempotent (--restore).
 
@@ -29,7 +29,10 @@ OLD = """    if (dirty_hi <= dirty_lo) dirty_lo = 0, dirty_hi = UINT64_MAX;  // 
 
 NEW = OLD + """    // NX-ATLAS-REFRESH: a CPU-written glyph atlas (R8 read as alpha) whose flushes never reach this texture is
     // uploaded again when its sampled bytes change, so a face or size change cannot leave stale glyphs in it.
-    static const bool atlas_refresh = std::getenv("NX_ATLAS_REFRESH") != nullptr;
+    static const bool atlas_refresh = [] {  // on by default; NX_ATLAS_REFRESH=0 turns it off
+        const char* e = std::getenv("NX_ATLAS_REFRESH");
+        return e == nullptr || std::atoi(e) != 0;
+    }();
     if (atlas_refresh && img->alpha_from_r && img->uploaded && !img->rendered && t->memory && t->storage_size) {
         static std::mutex atlas_lock;
         static std::map<uint64_t, std::pair<uint64_t, uint64_t>> atlas_sig;  // texture: {frame checked, signature}
