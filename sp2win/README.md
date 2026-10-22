@@ -10,6 +10,8 @@ user's own dump).
 | File | Purpose |
 |---|---|
 | `run-input.ps1` | main runner: start `sp2.exe`, optionally script button presses, collect the log and frame dumps |
+| `run-tutorial.ps1` | tutorial runner: target-frame stop, `NX_HANG_EXIT_MS`, and the temporary `SCENECHG`/`MOVEDBG`/`TUTSKIP` lines in the summary |
+| `tutorial-move7.ps1` | current tutorial schedule: aim/ZR skips, the timed Move page, right-stick camera legs, jump/swim probes |
 | `run-snap.ps1` | same, plus `NX_SNAP_FS` target snapshots (see a frame mid-build, e.g. a mask pass) |
 | `run-tdump.ps1` | same, plus `NX_DUMP_TEXTURES` readback of chosen NVN textures as PPM |
 | `run-trace.ps1` | draw tracing (`NX_TRACE_*`) for shaders, targets, uniforms and glyphs |
@@ -73,6 +75,17 @@ for ($f = 4600; $f -le 12000; $f += 240) { $s += ",${f}:A" }
 powershell -NoProfile -ExecutionPolicy Bypass -File .\run-input.ps1 -Seconds 700 -Tag aim `
   -DumpEvery 100 -Script $s
 ```
+
+The current schedule is `tutorial-move7.ps1`, which runs through aim, ZR and the Move page:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tutorial-move7.ps1
+```
+
+The Move page is a timed step: `main_00A00BDC` advances the manager from page 6 to page 8 when
+the global counter `[+0x44c]` reaches `0x12c0` (about 3,100 frames after the page starts). The
+schedule deliberately sends no left stick on that page: the actor's `+0x604` check at
+`L_A00350` calls `main_00620ED0(this, 7)`, which is the quit-to-title path, not the next page.
 
 If the log starts with `cannot reserve alias ... error 487`, a previous process has not
 exited yet: kill `sp2.exe`, wait ~20 s and run again (the script now retries this itself).

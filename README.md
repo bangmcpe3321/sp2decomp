@@ -15,11 +15,13 @@ used to establish it, and how far the port has got.
 The recompiled port runs the game's own code on Vulkan on Windows. PlayerMake character
 creation completes with legible text, the intro cutscene plays, and the first-launch controller
 tutorial runs: the controller page renders whole (the Pro Controller diagram, the Joy-Con photo,
-the banner shapes, the button prompts), the guide sentences read correctly, and the aim step
-passes — the game answers "Just like that!" and moves on to "Shoot with ZR!". Motion aiming reads
-a swept six-axis state (`NX_SIXAXIS_WOBBLE=1`), and a scripted input sweep walks the steps
-forward. About one boot in three stalls in the UI job manager at the character→tutorial
-transition (see Open).
+the banner shapes, the button prompts), the guide sentences read correctly, and the aim and ZR
+steps pass. The tutorial then reaches the Move page: its controller diagram, "Move with L!"
+banner and hand prompt render (the 3D view is still black), and the page's own timeline advances
+to the next page. A temporary `SCENECHG` log in `main_00620ED0` makes the page sequence visible.
+Motion aiming reads a swept six-axis state (`NX_SIXAXIS_WOBBLE=1`), and a scripted input sweep
+walks the steps forward. About one boot in three stalls in the UI job manager at the
+character→tutorial transition (see Open).
 
 ![The tutorial aim step, passed](docs/images/tutorial-aim-legible.png)
 
@@ -33,6 +35,18 @@ re-uploads when its bytes change.*
 
 *The next step: "Shoot with [ZR]!" with "Tilt the controller to aim!" underneath; the Joy-Con's
 ZR is lit orange and the prompt badge reads ZR.*
+
+![The tutorial Move step](docs/images/tutorial-move-step.png)
+
+*The Move page. The Pro Controller diagram highlights the left stick, and the "Move with L!"
+banner and hand prompt are drawn; the 3D room behind them is still black. The page is a timed
+step: `main_00A00BDC` advances the tutorial manager from page 6 to page 8 when the global
+counter `[+0x44c]` reaches `0x12c0`, about 3,100 frames after the page starts. An earlier forced
+skip took the `main_00A00300` actor-flag path at `L_A00350`, which calls
+`main_00620ED0(this, 7)` — the quit-to-title path; the `SCENECHG` log showed `6 -> 7` and the
+title reappeared. The skip is now disabled
+([tools/patches/patch-move-skip-disable.py](tools/patches/patch-move-skip-disable.py)), so the
+timeline transition runs.*
 
 ![PlayerMake character creation, eye colour step](docs/images/boot-playermake-en.png)
 
@@ -124,6 +138,11 @@ Open:
   `nn::font::TextureCache::CalculateKerning` → `FSS_set_scale`, so the job never completes.
   Re-running the same script usually passes. The stack is in the font code path whose atlas is
   handled by the atlas-refresh fix above, so the face/glyph-cache handling is the first suspect.
+- **Font layout loop.** A `FSS_set_scale` layout can keep the UI job worker inside the glyph
+  loop for minutes. The temporary 512-glyph cap
+  ([tools/patches/patch-fss-loop-cap.py](tools/patches/patch-fss-loop-cap.py)) returns `0x131`
+  after the cap, which keeps the job manager alive; the face removal and atlas handling are the
+  real fix and remain open.
 - **Characters.** Submitted every frame as fully skinned draws with real model textures, and
   the mask pass rasterises them (verified by target snapshots), but the visible colour pass
   leaves no pixels.
