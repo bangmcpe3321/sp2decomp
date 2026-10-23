@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-"""Force the tutorial and UI/page state machines into the known-good warp/plaza flow.
+"""Force the tutorial manager's unreachable 5 -> 6 request to warp state 7.
 
-Two separate null-state stalls were observed in `main_00620ED0`:
+The 9-state tutorial manager requests `old=5 -> new=6` after the first warp,
+but its shot-page update is no longer called.  Redirect that one request to
+`stateWarpToPlaza` state 7; state 7's own timeline (camera at 60 frames, plaza
+request at 180) is already verified.
 
-1. The tutorial manager (9 states) requests `old=5 -> new=6` after the first
-   warp, but its shot-page update is no longer called.  Redirect that request
-   to `stateWarpToPlaza` state 7; state 7's own timeline (camera at 60 frames,
-   plaza request at 180) is already verified.
+The 21-state UI/page manager is deliberately not touched.  Its `4 -> 5`
+request is the real title -> Off the Hook news handoff: the old table's state-5
+entry is null, but the page's scene-change handler creates a new page manager
+and loads the news scene.  Redirecting it to 7 skips the news and lands on the
+PlayerMake gear-selection screen (state 9), which stalls.
 
-2. The 21-state UI/page manager requests `old=4 -> new=5`, but its state-5
-   entry is null, so that state machine can never update.  Redirect that
-   request to the valid page state 7.  State 7 then advances to state 8 (the
-   A-confirmation/news page), and the normal A prompt leads to state 1.
-
-Both redirects are narrow diagnostics: they only rewrite these exact
-transitions and do not touch the other states or the state 8 restart path.
+This is a narrow diagnostic for the tutorial only and does not touch the other
+states or the state 8 restart path.
 
 Idempotent; use --restore.
 
@@ -37,21 +36,6 @@ NEW = """void main_00620ED0(nx::CPU& NX_RESTRICT c) {
     {
         uint64_t sm = c.x[0] ? nx::ld<uint64_t>(c.x[0] + 0x340) : 0;
         uint32_t old = sm ? nx::ld<uint32_t>(sm + 0x10) : 0xffffffffu;
-        // PATCH-FORCE-PLAZA-UI: the 21-state UI/page manager enters state 5
-        // for the shot page, but its state-5 entry is null.  Redirect its
-        // 4 -> 5 request to the valid page state 7.  The UI then advances to
-        // state 8 (A-confirmation/news) and the normal A prompt leads to
-        // state 1.
-        if (sm && old == 4 && uint32_t(c.x[1]) == 5 &&
-            nx::ld<uint32_t>(sm + 0x30) == 21) {
-            static int force_plaza_ui_logs = 0;
-            if (force_plaza_ui_logs < 8) {
-                force_plaza_ui_logs++;
-                nx::log("PATCH-FORCE-PLAZA-UI 4->7 this=%llx",
-                        (unsigned long long)c.x[0]);
-            }
-            c.x[1] = 7;
-        }
         if (old == 5 && uint32_t(c.x[1]) == 6) {
             static int force_plaza_logs = 0;
             if (force_plaza_logs < 8) {

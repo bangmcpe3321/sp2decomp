@@ -23,24 +23,30 @@ temporary `SCENECHG` log in `main_00620ED0` makes the tutorial and UI/page state
 visible. Motion aiming reads a swept six-axis state (`NX_SIXAXIS_WOBBLE=1`), and a scripted input
 sweep walks the steps forward.
 
-Two state tables both ask for a state that was never constructed at the tutorial→plaza boundary.
-The 9-state tutorial manager requests `5 → 6` after the first warp, and the 21-state UI/page
-manager requests `4 → 5` even though its state-5 entry is null in the state array (the table's
-state 5, 6, 9, 11–16 and 18 entries are all null). An idempotent patch redirects the two exact
-requests: the tutorial's `5 → 6` goes to warp state 7, and the UI manager's `4 → 5` goes to valid
-page state 7. The UI path has been verified live: state 7 advances to state 8 (the
-A-confirmation/news page), and state 8's own exit function calls `main_00620ED0` with state 1
-when the A prompt is confirmed. The first full route run then took the other valid branch:
-`7 → 1 → 2 → 9`. That is the PlayerMake gear-selection screen (four gear cards on the Switch
-tablet), not the plaza, and state 9's entry is null too, so the UI stalls there. The `4 → 7`
-redirect is therefore a diagnostic detour, not the plaza path; the 3D plaza remains unconfirmed.
-About one boot in three stalls in the UI job manager at the character→tutorial transition
-(see Open).
+The 9-state tutorial manager requests `5 → 6` after the first warp; an idempotent patch
+redirects that one request to warp state 7. The 21-state UI/page manager's `4 → 5` request is
+not a null-state dead end. Its state-5 entry stays null in the old table, but the page's virtual
+scene-change handler constructs a new page manager and loads the title's Off the Hook news
+scene. A live capture of the actual `4 → 5` transition is below: the central 960×540 TV
+viewport shows the news studio and the two hosts, Pearl and Marina. The earlier `4 → 7` redirect
+is a diagnostic detour that skips the news: it reaches the PlayerMake gear-selection screen
+(`7 → 1 → 2 → 9`), whose state-9 entry is null, and stalls there. The plaza is the next scene
+after the news; the current route is testing the news advance/skip input (A alone did not
+advance it in the first pass). About one boot in three stalls in the UI job manager at the
+character→tutorial transition (see Open).
 
 ![The title screen at 1920×1080](docs/images/title-1920x1080.png)
 
 *The title screen, rendered at the full 1920×1080 output size. The title appears around frame
 6750 on this build; the route keeps the `ZL+ZR` chord held past that point.*
+
+![The Off the Hook news scene reached through the actual 4 → 5 transition](docs/images/news-4to5.png)
+
+*The actual `4 → 5` UI/page transition loads the title's Off the Hook news scene. The central
+960×540 viewport shows the news studio with Pearl and Marina; the old 21-state table still
+reports its state-5 entry as null because the transition creates a new page manager. The
+surrounding UI is still mis-scaled (the separate UI-layout issue), but the news scene itself
+renders. The `4 → 7` detour skips this scene and reaches the gear-selection screen instead.*
 
 ![The tutorial aim step, passed](docs/images/tutorial-aim-legible.png)
 
@@ -225,7 +231,7 @@ Open:
 | Subsystem decomposition | Done (55 namespaces) |
 | Engine & middleware identification | Done |
 | **Function-body decompilation** | **Not done** — see [Limitations](#limitations) |
-| **Recompiled PC port** | Boots to the in-game UI: `RootTask::prepare_`, display loop, PlayerMake character creation, the title screen at 1920×1080, and the first-launch tutorial - [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md). The tutorial advances past aim/ZR with legible guide text, and the Move page's central 960×540 3D room renders. The tutorial→plaza boundary is under test: an idempotent patch redirects the tutorial's `5 → 7`, and the 21-state UI/page manager's `4 → 5`. On the current run the UI took `4 → 7 → 1 → 2 → 9` and landed on the PlayerMake gear-selection screen; state 9 is null, so that UI stalls there. The 3D plaza is still unconfirmed; the UI redirect is a diagnostic, not the plaza path. The 3D characters are still submitted but not visible in the colour pass, and about one boot in three stalls at the character→tutorial UI job transition. |
+| **Recompiled PC port** | Boots to the in-game UI: `RootTask::prepare_`, display loop, PlayerMake character creation, the title screen at 1920×1080, and the first-launch tutorial - [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md). The tutorial advances past aim/ZR with legible guide text, and the Move page's central 960×540 3D room renders. The tutorial→plaza boundary is under test: an idempotent patch redirects the tutorial's `5 → 6` to warp state 7, and the 21-state UI/page manager's real `4 → 5` handoff loads the Off the Hook news scene (the old table's state-5 entry is null because the transition creates a new page manager). The earlier `4 → 7` detour reached the gear-selection screen and stalled at null state 9; it is a diagnostic, not the plaza path. The 3D plaza is still unconfirmed; the news scene and its two hosts render in the central 960×540 viewport. About one boot in three stalls at the character→tutorial UI job transition. |
 
 Everything below is static analysis of the shipped binary unless a section says
 otherwise; runtime findings from the port are labelled as such. Behaviour is only
