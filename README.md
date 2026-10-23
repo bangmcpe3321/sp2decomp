@@ -12,16 +12,35 @@ used to establish it, and how far the port has got.
 
 ## Current state
 
-The recompiled port runs the game's own code on Vulkan on Windows. PlayerMake character
-creation completes with legible text, the intro cutscene plays, and the first-launch controller
-tutorial runs: the controller page renders whole (the Pro Controller diagram, the Joy-Con photo,
-the banner shapes, the button prompts), the guide sentences read correctly, and the aim and ZR
-steps pass. The tutorial then reaches the Move page: its controller diagram, "Move with L!"
-banner and hand prompt render (the 3D view is still black), and the page's own timeline advances
-to the next page. A temporary `SCENECHG` log in `main_00620ED0` makes the page sequence visible.
-Motion aiming reads a swept six-axis state (`NX_SIXAXIS_WOBBLE=1`), and a scripted input sweep
-walks the steps forward. About one boot in three stalls in the UI job manager at the
-character→tutorial transition (see Open).
+The recompiled port runs the game's own code on Vulkan on Windows. The title screen renders at
+1920×1080. PlayerMake character creation completes with legible text, the intro cutscene plays,
+and the first-launch controller tutorial runs: the controller page renders whole (the Pro
+Controller diagram, the Joy-Con photo, the banner shapes, the button prompts), the guide
+sentences read correctly, and the aim and ZR steps pass. The tutorial then reaches the Move page:
+its controller diagram, "Move with L!" banner and hand prompt render, and the 3D room behind them
+now renders too — a central 960×540 viewport, measured at ~98% non-black pixels and luma 85. A
+temporary `SCENECHG` log in `main_00620ED0` makes the tutorial and UI/page state sequences
+visible. Motion aiming reads a swept six-axis state (`NX_SIXAXIS_WOBBLE=1`), and a scripted input
+sweep walks the steps forward.
+
+Two state tables both ask for a state that was never constructed at the tutorial→plaza boundary.
+The 9-state tutorial manager requests `5 → 6` after the first warp, and the 21-state UI/page
+manager requests `4 → 5` even though its state-5 entry is null in the state array (the table's
+state 5, 6, 9, 11–16 and 18 entries are all null). An idempotent patch redirects the two exact
+requests: the tutorial's `5 → 6` goes to warp state 7, and the UI manager's `4 → 5` goes to valid
+page state 7. The UI path has been verified live: state 7 advances to state 8 (the
+A-confirmation/news page), and state 8's own exit function calls `main_00620ED0` with state 1
+when the A prompt is confirmed. The first full route run then took the other valid branch:
+`7 → 1 → 2 → 9`. That is the PlayerMake gear-selection screen (four gear cards on the Switch
+tablet), not the plaza, and state 9's entry is null too, so the UI stalls there. The `4 → 7`
+redirect is therefore a diagnostic detour, not the plaza path; the 3D plaza remains unconfirmed.
+About one boot in three stalls in the UI job manager at the character→tutorial transition
+(see Open).
+
+![The title screen at 1920×1080](docs/images/title-1920x1080.png)
+
+*The title screen, rendered at the full 1920×1080 output size. The title appears around frame
+6750 on this build; the route keeps the `ZL+ZR` chord held past that point.*
 
 ![The tutorial aim step, passed](docs/images/tutorial-aim-legible.png)
 
@@ -39,14 +58,21 @@ ZR is lit orange and the prompt badge reads ZR.*
 ![The tutorial Move step](docs/images/tutorial-move-step.png)
 
 *The Move page. The Pro Controller diagram highlights the left stick, and the "Move with L!"
-banner and hand prompt are drawn; the 3D room behind them is still black. The page is a timed
-step: `main_00A00BDC` advances the tutorial manager from page 6 to page 8 when the global
-counter `[+0x44c]` reaches `0x12c0`, about 3,100 frames after the page starts. An earlier forced
-skip took the `main_00A00300` actor-flag path at `L_A00350`, which calls
-`main_00620ED0(this, 7)` — the quit-to-title path; the `SCENECHG` log showed `6 -> 7` and the
-title reappeared. The skip is now disabled
-([tools/patches/patch-move-skip-disable.py](tools/patches/patch-move-skip-disable.py)), so the
-timeline transition runs.*
+banner and hand prompt are drawn; the room behind them is now rendered as a central 960×540
+viewport (~98% non-black, luma 85), rather than black. The page is a timed step:
+`main_00A00BDC` advances the tutorial manager from page 6 to page 8 when the global counter
+`[+0x44c]` reaches `0x12c0`, about 3,100 frames after the page starts. An earlier forced skip
+took the `main_00A00300` actor-flag path at `L_A00350`, which calls `main_00620ED0(this, 7)` —
+the quit-to-title path; the `SCENECHG` log showed `6 -> 7` and the title reappeared. The skip is
+now disabled ([tools/patches/patch-move-skip-disable.py](tools/patches/patch-move-skip-disable.py)),
+so the timeline transition runs.*
+
+![PlayerMake gear selection reached through the UI state redirect](docs/images/ui-gear-state9.png)
+
+*The state-9 evidence frame from the first full planted-route run: the PlayerMake gear-selection
+screen (four gear cards on the Switch tablet), reached through `4 -> 7 -> 1 -> 2 -> 9`. This is not
+the plaza. State 9's entry is null, so the UI stops here; the image confirms that redirecting the
+missing shot state to state 7 is a detour into the PlayerMake UI, not the plaza handoff.*
 
 ![PlayerMake character creation, eye colour step](docs/images/boot-playermake-en.png)
 
@@ -199,7 +225,7 @@ Open:
 | Subsystem decomposition | Done (55 namespaces) |
 | Engine & middleware identification | Done |
 | **Function-body decompilation** | **Not done** — see [Limitations](#limitations) |
-| **Recompiled PC port** | Boots to the in-game UI: `RootTask::prepare_`, display loop, PlayerMake character creation, then the title and tutorial screens - [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md). The first-launch tutorial advances past the aim step with legible guide text. Two rendering bugs are open: the 3D characters are submitted but do not appear in the scene, and about one boot in three stalls at the character→tutorial UI job transition. |
+| **Recompiled PC port** | Boots to the in-game UI: `RootTask::prepare_`, display loop, PlayerMake character creation, the title screen at 1920×1080, and the first-launch tutorial - [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md). The tutorial advances past aim/ZR with legible guide text, and the Move page's central 960×540 3D room renders. The tutorial→plaza boundary is under test: an idempotent patch redirects the tutorial's `5 → 7`, and the 21-state UI/page manager's `4 → 5`. On the current run the UI took `4 → 7 → 1 → 2 → 9` and landed on the PlayerMake gear-selection screen; state 9 is null, so that UI stalls there. The 3D plaza is still unconfirmed; the UI redirect is a diagnostic, not the plaza path. The 3D characters are still submitted but not visible in the colour pass, and about one boot in three stalls at the character→tutorial UI job transition. |
 
 Everything below is static analysis of the shipped binary unless a section says
 otherwise; runtime findings from the port are labelled as such. Behaviour is only

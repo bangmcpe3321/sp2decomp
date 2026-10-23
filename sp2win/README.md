@@ -10,6 +10,8 @@ user's own dump).
 | File | Purpose |
 |---|---|
 | `run-input.ps1` | main runner: start `sp2.exe`, optionally script button presses, collect the log and frame dumps |
+| `run-headless.ps1` | headless runner used for the current captures: frame-indexed input, `NX_ATLAS_REFRESH=1`, 250-frame dumps, 30 s settle, alias retry |
+| `route-plaza13.ps1` | current late-A route: title/tutorial sweep plus A presses after frame 22000 for the UI state-8 news page |
 | `run-tutorial.ps1` | tutorial runner: target-frame stop, `NX_HANG_EXIT_MS`, and the temporary `SCENECHG`/`MOVEDBG`/`TUTSKIP` lines in the summary |
 | `tutorial-move7.ps1` | current tutorial schedule: aim/ZR skips, the timed Move page, right-stick camera legs, jump/swim probes |
 | `run-snap.ps1` | same, plus `NX_SNAP_FS` target snapshots (see a frame mid-build, e.g. a mask pass) |
@@ -81,6 +83,20 @@ The current schedule is `tutorial-move7.ps1`, which runs through aim, ZR and the
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tutorial-move7.ps1
 ```
+
+The latest plaza handoff route is `route-plaza13.ps1` (it calls `run-headless.ps1`). It keeps the
+title/tutorial input sweep from `plaza12` and adds A presses after frame 22000 for the UI/page
+manager's state-8 news page:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\route-plaza13.ps1
+```
+
+The runner writes `progress_plaza13.txt`, `plaza13.log`, and `private/frames/NNNNN.ppm`. The
+state-table redirects that make this route meaningful are applied by
+[`tools/patches/patch-force-plaza-on-shot-exit.py`](../tools/patches/patch-force-plaza-on-shot-exit.py):
+the tutorial manager's `5 -> 6` becomes `5 -> 7`, and the 21-state UI/page manager's `4 -> 5`
+becomes `4 -> 7` because its state-5 entry is null.
 
 The Move page is a timed step: `main_00A00BDC` advances the manager from page 6 to page 8 when
 the global counter `[+0x44c]` reaches `0x12c0` (about 3,100 frames after the page starts). The
