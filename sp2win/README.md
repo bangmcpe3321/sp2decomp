@@ -11,7 +11,11 @@ user's own dump).
 |---|---|
 | `run-input.ps1` | main runner: start `sp2.exe`, optionally script button presses, collect the log and frame dumps |
 | `run-headless.ps1` | headless runner used for the current captures: frame-indexed input, `NX_ATLAS_REFRESH=1`, 250-frame dumps, 30 s settle, alias retry |
-| `route-plaza13.ps1` | current late-A route: title/tutorial sweep plus A presses after frame 22000 for the UI state-8 news page |
+| `route-plaza13.ps1` | older late-A route: title/tutorial sweep plus A presses after frame 22000 for the UI state-8 news page (the `4 → 7` detour, superseded) |
+| `route-plaza.ps1` | news route to the plaza: title/news input, then `A` every 30 frames to frame 40000 (`plazaext` run, reaches `cProgress` and the first NPC page) |
+| `route-plaza-b.ps1` | same, but `A` stops at 32000 and `B` backs out of the NPC page, then the camera turns (`plazab` run, `cProgress` at rest) |
+| `route-news-pose.ps1` | short news-ending route for the BGM handover (`-Seconds/-Tag/-DumpEvery/-Attempts`) |
+| `route-news-sweep.ps1`, `route-news-plaza.ps1`, `route-move-trace.ps1` | news input sweeps and the tutorial Move-step trace used while mapping those steps |
 | `run-tutorial.ps1` | tutorial runner: target-frame stop, `NX_HANG_EXIT_MS`, and the temporary `SCENECHG`/`MOVEDBG`/`TUTSKIP` lines in the summary |
 | `tutorial-move7.ps1` | current tutorial schedule: aim/ZR skips, the timed Move page, right-stick camera legs, jump/swim probes |
 | `run-snap.ps1` | same, plus `NX_SNAP_FS` target snapshots (see a frame mid-build, e.g. a mask pass) |
@@ -84,19 +88,42 @@ The current schedule is `tutorial-move7.ps1`, which runs through aim, ZR and the
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tutorial-move7.ps1
 ```
 
-The latest plaza handoff route is `route-plaza13.ps1` (it calls `run-headless.ps1`). It keeps the
-title/tutorial input sweep from `plaza12` and adds A presses after frame 22000 for the UI/page
-manager's state-8 news page:
+The latest plaza handoff route is `route-plaza.ps1` (it calls `run-tutorial.ps1`). It holds the
+title `ZL+ZR` chord through the handoff, advances the news with `A`, and then keeps pressing `A`
+every 30 frames:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\route-plaza13.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\route-plaza.ps1
 ```
 
-The runner writes `progress_plaza13.txt`, `plaza13.log`, and `private/frames/NNNNN.ppm`. The
-state-table redirects that make this route meaningful are applied by
-[`tools/patches/patch-force-plaza-on-shot-exit.py`](../tools/patches/patch-force-plaza-on-shot-exit.py):
-the tutorial manager's `5 -> 6` becomes `5 -> 7`, and the 21-state UI/page manager's `4 -> 5`
-becomes `4 -> 7` because its state-5 entry is null.
+That run (`plazaext`) goes `5 → 7 → 1 → 2`: the Turbun Shell reward, then Inkopolis Square. Its
+log line order is a trap when reading the timeline: `SCENECHG` and the BGM lines are emitted
+from different threads, so the *file position* of a transfer does not match the frame it
+happened at (in `plazaext`, `5 → 7` sits at file line 6545 but frame ~6546, while `1 → 2` sits
+at line 6670 — about frame 7500 — and `2 → 9` at line 13478 is frame 25702). Frame dumps are
+the reliable ordering.
+
+Pressing `A` in the square opens the first NPC's gear page (`SeqMgrPlaza` state 9, `cNpc`) and
+stays there, which is why `route-plaza-b.ps1` presses `B` from frame 33000 instead:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\route-plaza-b.ps1
+```
+
+Both runs dump `private/frames/NNNNN.ppm`; `plazaext` reaches the square's rendered backdrop
+(frame 35000), `plazab` captures the square at rest (frames 37500/42500 are byte-identical).
+
+The patch that matters for the news → plaza handoff is
+[`patch-newsend-bgm-handover.py`](../tools/patches/patch-newsend-bgm-handover.py): it arms a
+delay from `SceneBgmPlaza::requestNewsEnding`, runs the game's own
+`exitState_`/`onEnterProgress_` from `Cmn::BgmConductor::xlinkCalc` once it elapses, and answers
+`isNewsEndingFinished` while it is pending. The tutorial manager's `5 -> 6` is still redirected
+to `5 -> 7` by
+[`patch-force-plaza-on-shot-exit.py`](../tools/patches/patch-force-plaza-on-shot-exit.py). That
+patch no longer redirects the UI manager's `4 -> 5`: that transition is the real news handoff.
+The temporary state-4 probe that forces the stalled page-4 update into it is
+[`patch-page4-scene5-force.py`](../tools/patches/patch-page4-scene5-force.py); it is a
+diagnostic, not part of the production path.
 
 The Move page is a timed step: `main_00A00BDC` advances the manager from page 6 to page 8 when
 the global counter `[+0x44c]` reaches `0x12c0` (about 3,100 frames after the page starts). The

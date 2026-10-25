@@ -30,9 +30,15 @@ scene-change handler constructs a new page manager and loads the title's Off the
 scene. A live capture of the actual `4 → 5` transition is below: the central 960×540 TV
 viewport shows the news studio and the two hosts, Pearl and Marina. The earlier `4 → 7` redirect
 is a diagnostic detour that skips the news: it reaches the PlayerMake gear-selection screen
-(`7 → 1 → 2 → 9`), whose state-9 entry is null, and stalls there. The plaza is the next scene
-after the news; the current route is testing the news advance/skip input (A alone did not
-advance it in the first pass). About one boot in three stalls in the UI job manager at the
+(`7 → 1 → 2 → 9`), whose state-9 entry is null, and stalls there.
+
+The news now ends, and the plaza loads behind it. The news' own BGM handover is driven through
+the game's code path by [patch-newsend-bgm-handover.py](tools/patches/patch-newsend-bgm-handover.py),
+so the pose sequence completes and the scene goes `5 → 7 → 1 → 2`: the Turbun Shell reward, then
+`SeqMgrPlaza::stateProgress`, i.e. Inkopolis Square. The last story transition is
+`Cmn::BgmConductor::xlinkCalc`, the plaza's own track restarting. The 3D world behind the plaza UI
+still does not draw (see [The plaza](#the-plaza)), so the square is only visible through the
+first NPC page's camera. About one boot in three stalls in the UI job manager at the
 character→tutorial transition (see Open).
 
 ![The title screen at 1920×1080](docs/images/title-1920x1080.png)
@@ -47,6 +53,21 @@ character→tutorial transition (see Open).
 reports its state-5 entry as null because the transition creates a new page manager. The
 surrounding UI is still mis-scaled (the separate UI-layout issue), but the news scene itself
 renders. The `4 → 7` detour skips this scene and reaches the gear-selection screen instead.*
+
+![Inkopolis Square behind the first NPC's gear page](docs/images/plaza-gear-page.png)
+
+*The plaza after the news: `5 → 7 → 1 → 2` reaches `SeqMgrPlaza::stateProgress` and the HUD
+(level, cash, coins) comes up. The first NPC the route walks into opens the gear page
+(`stateShowGearNpc`: weapon, headgear, clothes, shoes), and that page's camera renders the
+square's sky behind it — clouds over a haze, in the lower-right area next to the card. The
+lower two thirds of the frame are 100% non-black with 63–77 distinct colours per sampled
+region, which is a rendered sky, not a flat fill. The `B` prompt backs out of the page.*
+
+![Inkopolis Square at rest in the plaza](docs/images/plaza-progress.png)
+
+*The same plaza at rest, in `cProgress` with the NPC page closed and the camera turned: the
+NPC/action markers and the HUD draw, but no stage geometry and no sky (98% of pixels black).
+This is the current rendering blocker, described under "The plaza" below.*
 
 ![The tutorial aim step, passed](docs/images/tutorial-aim-legible.png)
 
@@ -137,6 +158,48 @@ Six fixes took the port from a boot fatal to this point:
   clears, docs/nvn/DEBUG.md #52).
   Patch: [tools/patches/patch-clears-scissor-default.py](tools/patches/patch-clears-scissor-default.py).
 
+### The plaza
+
+After the news, `SeqMgrPlaza` runs `5 cNews → 7 cGetTurbunShell → 1 cPreProgress → 2 cProgress`.
+The Turbun Shell reward is the pop-up at frames 10000–15000 of the plaza run; `cProgress` is
+Inkopolis Square, HUD up, with NPC/action markers on screen. The state names are the
+string table at `main.bin+0x282e0d9` (`cReady, cPreProgress, cProgress, cFirstDemo, cTitle,
+cNews, cIntro, cGetTurbunShell, cFirstTurbunShell, cNpc, …`), and the delegate table is at
+`main.bin+0x2fbb578`.
+
+One thing in the square does render, which is useful for separating what works from what does
+not. Standing in front of an NPC and pressing `A` calls `SeqMgrPlaza::requestLookAtNpc`(`0x97CC2C`) → `changeStateTo(9)` = `cNpc`; that spawns `Game::SeqPlazaNpc` and opens
+`stateShowGearNpc` (`main_00988E6C`). Inside that page the stage's sky draws behind the gear
+card: fully populated, saturated clouds over a haze (100% non-black, 63–77 distinct colours per
+sampled region). `B` there calls `changeStateTo(1, true)` into `stateShowStatusNpc`, whose back
+button calls `outGearOrder` and returns `SeqMgrPlaza` to `cProgress`. With the page closed the
+square is black again, while the `Lp::UI` markers and the HUD still draw (98% of pixels black).
+
+The difference is not the route and not the moment the page closed. Entering `cProgress` and
+never opening an NPC page leaves the square black; opening one, closing it with `B` and turning
+the camera leaves it black as well — the same frames are byte-identical whichever way
+`cProgress` is reached (frames 37500 and 42500 of the `plazab` run). The page camera is what
+gives the stage's draws a usable state.
+
+What the log rules out:
+
+- **Missing NVN commands.** None of the stage draws need one. The runtime rejects nothing in
+  this run (`0 unknown` submits, `nvnCommandBufferSetAlphaRef` is the newest command the game
+  first calls, and every other unimplemented NVN call — indirect draws, buffer copies,
+  transform feedback, debug groups — is never made).- **Missing pipelines.** The 60-frame report shows `0 no pipeline` throughout; the stage's 637
+  pipelines and 13 ASTC textures are built right after `2 → 9` (3.5 s of compile). Draws that
+  reach the replay without a *program* do not draw: `no program` goes from 0 to ~3–5 million
+  over the run, and the 512-entry pipeline cache thrashes from the title onward. This is a
+  consequence of the cache cap, not a missing shader.
+- **The viewport's clears.** The last clear statistics show `96812 scissored`, of which only 13
+  left their pass and cleared a whole target — the plaza's clears are scissored to the
+  960×540 composite viewport, so the square's own pass is not being wiped from outside.
+
+So the open question is inside the stage pass itself. The next step is a pass trace of one
+plaza frame (`NX_TRACE_PASSES_FROM_FRAME`, [patch-pass-frame.py](tools/patches/patch-pass-frame.py)):
+which target the stage draws into, whether the pass is created there at all, and whether its
+draws arrive after the composite viewport has been blitted.
+
 ### Memory, input and the tutorial
 
 - **Six-axis sensor HLE.** `GetSixAxisSensorHandles` used to leave the output untouched, and it
@@ -164,6 +227,12 @@ Six fixes took the port from a boot fatal to this point:
 
 Open:
 
+- **The plaza's 3D world.** `SeqMgrPlaza::stateProgress` runs, the HUD and markers draw, and the
+  stage's pipelines and textures build, but the square's own geometry and sky leave no pixels at
+  rest — only the NPC gear page's camera renders the stage sky (see "The plaza"). First suspect:
+  the stage pass itself, since the composite's scissored clears only cover the 960×540 viewport,
+  and the pipeline cache thrash (512 cap, 3–5 million `no program` draws) is what makes the
+  replay drop draws.
 - **UI job stall at the character→tutorial transition.** About one boot in three the game stops
   advancing at frame ~2933–2942 with no render thread activity: the main thread waits in
   `Lp::UI::Impl::JobMgr::endRun` on a light event while a UI job worker is still inside
