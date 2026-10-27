@@ -1,45 +1,45 @@
-# Cột mốc: boot tới menu chính (chỉ offline, chỉ single-player)
+# Đá lê: khởi động tới trình đơn chính (điu tắt, chỉ người chơi đơn)
 
-[English](BOOT_MILESTONE.md)
+(Tiếng thét)
 
-Mục tiêu hẹp nhất mà vẫn hữu ích: chạy `main` gốc trên PC và tới được màn hình
-tiêu đề, chưa cần gameplay phía sau.
+The narrowest useful target: play the original `main` on PC and reach the title
+Màn hình, vẫn chưa có trò chơi đằng sau nó.
 
-Tài liệu này định nghĩa chính xác cột mốc đó, xác định bộ máy khởi động, và nêu
-chiến lược khiến nó trở nên khả thi.
+Tài liệu này xác định một cách chính xác, xác định bộ máy khởi động, và
+cho biết chiến lược làm cho nó dễ uốn nắn.
 
 ---
 
-## 1. Đính chính các giả định trước đó của dự án
+## 1. chỉnh sửa các giả định ban đầu của dự án
 
-Các ghi chú trước đây coi MOD0 là có chứa entry point và suy ra "entry VA" từ
-`+0x10 + +0x14`. **Điều đó sai.** Theo
-[đặc tả MOD của SwitchBrew](https://switchbrew.org/wiki/MOD), header module
-****không** chứa entry point**:
+Các ghi chú trước đó được xử lý MOD0 như là bao gồm một điểm nhập và bắt nguồn từ một VA nhập cảnh
+from `+0x10 + +0x14`. **That was wrong.** Per the
+[SwitchBrew MOD specification](https://switchbrew.org/wiki/MOD), the module header
+không chứa điểm nhập:
 
-| Offset | Trường | Bản build này |
+|Hiệu|Tìm kiếm|Xây dựng này|
 |---|---|---|
-| 0x0 | Signature `"MOD0"` | `4d4f4430` |
-| 0x4 | `DynamicOffset` | `0x2f9a468` |
-| 0x8 | `BssStartOffset` | `0x2fdbff8` |
-| 0xC | `BssEndOffset` | `0x3698f98` |
-| 0x10 | `ExceptionInfoStartOffset` | `0x2921ec0` |
-| 0x14 | `ExceptionInfoEndOffset` | `0x2a00eac` |
-| 0x18 | `ModuleOffset` (sinh lúc runtime, ≈ base của `.bss`) | `0x2fdbff8` |
+|0x0| Signature `"MOD0"` | `4d4f4430` |
+|0x4| `DynamicOffset` | `0x2f9a468` |
+|0x8| `BssStartOffset` | `0x2fdbff8` |
+|0xC| `BssEndOffset` | `0x3698f98` |
+|0x10| `ExceptionInfoStartOffset` | `0x2921ec0` |
+|0x14| `ExceptionInfoEndOffset` | `0x2a00eac` |
+|0x18| `ModuleOffset` (runtime-generated, ≈ `.bss` base) | `0x2fdbff8` |
 
-Vậy `+0x10`/`+0x14` là **metadata xử lý ngoại lệ**, không phải entry, và `+0x18`
-là đối tượng module trong `.bss` — nhất quán với `BssStartOffset` và với base
-`.bss` đã tính được là `0x2fdc000`. MOD0 thay thế cho `PT_DYNAMIC`, không phải
-điểm vào của chương trình.
+So `+0x10`/`+0x14` is **exception-handling metadata**, not an entry, and `+0x18`
+is the module object in `.bss` — consistent with `BssStartOffset` and with the
+computed `.bss` base `0x2fdc000`. MOD0 is a replacement for `PT_DYNAMIC`, not a
+mục nhập chương trình.
 
-Bất kỳ tài liệu nào trong kho này trích dẫn "MOD0 entry point" đều nên bị bỏ qua.
-[README](README.md) đã được sửa lại cho đúng.
+Bất kỳ tài liệu nào trong rep này trích dẫn một "MD0 mục nhập" nên được bỏ qua.
+Cái [README] (REDME.md) đã được chỉnh lại phù hợp.
 
 ---
 
-## 2. Module này thực sự khởi động như thế nào
+## 2. Mô-đun này thực sự bắt đầu như thế nào
 
-Hai cơ chế, cả hai đều có thật và đều đọc được từ binary:
+Hai cơ chế, vừa thật vừa có thể đọc được từ nhị phân:
 
 **Dynamic section** (VA `0x2f9a470`, file offset `0x2f9a570`):
 
@@ -54,122 +54,122 @@ DT_RELA          = 0x1416048
 DT_JMPREL        = 0x19ec6a8
 ```
 
-1604 static constructor chạy trước mọi thứ khác. Không cái nào trong số đó phân
-giải được thành một symbol có tên, và điều đó là bình thường — chúng là các
-initialiser cục bộ do compiler sinh ra.
+1604 máy tạo tĩnh chạy trước khi có bất cứ điều gì khác.
+Biểu tượng mà người ta mong đợi — họ là những người biên dịch tại địa phương.
 
-**Trình tự khởi động của framework**, phục hồi từ bảng symbol (`Lp::Sys`):
+**Framework startup sequence**, recovered from the symbol table (`Lp::Sys`):
 
-| Địa chỉ | Symbol | Vai trò |
+|Địa chỉ|Ký hiệu|Nhiệm vụ|
 |---|---|---|
-| `0x71011f5b20` | `Lp::Sys::SysInit::Init` | entry của framework |
-| `0x71011f5ab4` | `Lp::Sys::SysInit::nninitStartup` | khởi động SDK |
-| `0x71011f603c` | `Lp::Sys::SysInit::printFromStartTime` | đo thời gian khởi động |
-| `0x71011fca28` | `Lp::Sys::RootTask::parallelInitThreadFunc` | init song song |
-| `0x71011fcb44` | `Lp::Sys::RootTask::runParallelInitThread` | init song song |
-| `0x71011fcba4` | `Lp::Sys::RootTask::waitDoneParallelInitThread` | chờ init xong |
-| `0x7100053a8c` | `Lp::Sys::Scene::sceneCalc` | cập nhật mỗi frame |
-| `0x7100096838` | `Lp::Sys::CalcInGSysCalc` | điều phối pass calc |
+| `0x71011f5b20` | `Lp::Sys::SysInit::Init` |Mục nhập khung|
+| `0x71011f5ab4` | `Lp::Sys::SysInit::nninitStartup` |Chạy SDK|
+| `0x71011f603c` | `Lp::Sys::SysInit::printFromStartTime` |Thời gian khởi chạy|
+| `0x71011fca28` | `Lp::Sys::RootTask::parallelInitThreadFunc` |Init song song|
+| `0x71011fcb44` | `Lp::Sys::RootTask::runParallelInitThread` |Init song song|
+| `0x71011fcba4` | `Lp::Sys::RootTask::waitDoneParallelInitThread` |Tham gia vào nó|
+| `0x7100053a8c` | `Lp::Sys::Scene::sceneCalc` |Cập nhật mỗi khung|
+| `0x7100096838` | `Lp::Sys::CalcInGSysCalc` |Name|
 
-`Lp::Sys::SysInit::Init` là entry thực tế cho việc port, và
-`RootTask::parallelInitThreadFunc` là điểm phân nhánh nơi framework khởi tạo các
-subsystem **đồng thời**. `sead::JobQueue::run` (`0x7100096a34`) là nền tảng của
-việc điều phối đó.
+`Lp::Sys::SysInit::Init` is the practical entry for a port, and
+`RootTask::parallelInitThreadFunc` is the fan-out point where the framework
+initialises subsystems concurrently. `sead::JobQueue::run` (`0x7100096a34`)
+dưới sự hỗ trợ của thông điệp.
 
-Lưu ý framework khởi động nằm trong module **`sdk`**, không phải `main` — nên
-`sdk` không phải là phần phụ tùy chọn. Nó nằm trên đường tới frame đầu tiên.
-
----
-
-## 3. Chiến lược: patch, đừng viết lại
-
-Đây là quyết định quan trọng nhất, và nó biến cột mốc từ khổng lồ thành có giới hạn.
-
-Có hai cách để chạy một binary ARM64 của Switch trên PC x86-64:
-
-**(a) Decompile toàn bộ + biên dịch lại.** Dựng lại cả 113.150 hàm bằng C++, biên
-dịch native. Đây là kiểu dự án decompile kinh điển, và là nỗ lực nhiều năm, nhiều
-người được mô tả trong [PORTING.md](PORTING.md). Nó **không** phải điều kiện tiên
-quyết để boot.
-
-**(b) Dịch binary kèm thay thế dần dần.** Giữ nguyên binary `main` gốc và thực thi
-nó, đồng thời thay thế tầng platform bên dưới. Mỗi hàm được viết lại sẽ thay thế
-một slot dispatcher; hơn 100.000 hàm còn lại chạy nguyên vẹn. Đây chính là cách
-một số bản port PC thương mại đã được làm ra.
-
-**Với mục tiêu "boot tới menu" và single-player, (b) là con đường đúng.** Dưới
-chiến lược đó, cột mốc không còn là "viết lại game" — mà là:
-
-> viết lại các hàm platform `nn::` cho tới khi binary thôi đòi phần cứng Nintendo.
-
-Đó là một mục tiêu có giới hạn và đếm được: khoảng **4.070 hàm platform** trải
-trên các namespace `nn::`, trong đó chỉ tập con mà boot chạm tới là quan trọng cho
-cột mốc này. Các đường `DummyMatch` / `DummyLocalMatch` / `LobbyForShow` tìm thấy
-trước đó là bằng chứng rằng game vốn đã chịu được các subsystem được mô phỏng —
-rất phù hợp với cách tiếp cận (b).
+Note the boot framework lives in the **`sdk` module**, not `main` — so `sdk` is
+Không phụ thuộc vào giàn giáo. Nó nằm trên đường dẫn quan trọng đến khung thứ nhất.
 
 ---
 
-## 4. Tập phụ thuộc tối thiểu để boot
+## 3. Chiến thuật: vá, đừng viết lại
 
-Để tới được màn hình tiêu đề, những thứ sau phải chạy được. Chưa cần gì khác.
+Đây là quyết định quan trọng nhất, và nó thay đổi mốc quan trọng từ
+rất lớn để ràng buộc.
 
-| Thứ tự | Subsystem | Số hàm | Vì sao cần để boot |
+Có hai cách để một hệ nhị phân ARM64 chạy trên x86-64 PC:
+
+**(a) Sự phân hủy hoàn toàn + tái phối hợp.** Xây dựng lại tất cả 113, 150 chức năng trong C++,
+Đây là dự án phân hủy cổ điển, và nó là nhiều năm,
+Nỗ lực của nhiều người được mô tả trong [PORTING.md].
+Điều kiện tiên quyết để khởi động.
+
+**(b) Binary translation with incremental replacement.** Keep the original `main`
+Chương trình nhị phân và thực hiện nó, thay thế lớp nền bên dưới nó.
+Hàm bổ sung thay thế một khe bộ gửi; còn lại 100,000+ chức năng
+Chạy không bị động. Đây là cách một số cổng PC thương mại thực sự được sản xuất.
+
+** For "boot to menu" và một người chơi, (b) là con đường chính xác.** Dưới nó,
+Giai đoạn quan trọng không phải là sự kết thúc cuộc chơi. Đó là:
+
+> reimplement `nn::` platform functions until the binary stops asking for
+> Phần cứng Nintendo.
+
+Đó là một mục tiêu ràng buộc, có thể liệt kê: xấp xỉ **4,070 chức năng**
+across the `nn::` namespaces, of which only the boot-reachable subset matters for
+this milestone. The `DummyMatch` / `DummyLocalMatch` / `LobbyForShow` paths found
+Trước đó là bằng chứng rằng trò chơi đã dung thứ cho các hệ thống con được mô phỏng, mà
+phù hợp để tiếp cận (b) trực tiếp.
+
+---
+
+## 4. phụ thuộc nhỏ nhất khởi động
+
+Để tới được màn hình tiêu đề, những thứ này phải hoạt động.
+
+|Thứ tự|Hệ thống con|Hàm|Tại sao nó lại cần thiết để khởi động?|
 |---:|---|---:|---|
-| 1 | `nn::os` | 159 | thread, mutex, event, TLS, semaphore — framework dùng đa luồng |
-| 2 | `nn::mem` | 17 | heap cho `.bss` 7 MB và cho mọi cấp phát |
-| 3 | `nn::oe` | 36 | vòng đời ứng dụng; `nn::oe::Initialize`, `FinishStartupLogo` |
-| 4 | `nn::fs` | 44 | mount romfs; không có nó thì không nạp được gì |
-| 5 | `nn::vi` / `nn::nvn` | — | hiển thị và trình bày hình |
-| 6 | `nn::gfx` | 289 | graphics device, memory pool, command buffer |
-| 7 | `nn::g3d` | 292 | renderer 3D mà scene tiêu đề sẽ dùng |
-| 8 | `nn::ui2d` | 476 | renderer 2D cho layout menu |
-| 9 | `nn::atk` | 1.426 | bộ công cụ UI — tiêu đề, menu, nút |
-| 10 | `nn::font` | 230 | chữ trong menu |
-| 11 | `nn::hid` | 112 | tối thiểu là "press start" |
-| 12 | `nn::audio` | 182 | một số game chặn boot ở bước init âm thanh |
+| 1 | `nn::os` | 159 |Các sợi chỉ, dây câm, sự kiện, hệ thống định vị — khung được nối liền|
+| 2 | `nn::mem` | 17 | heap for the 7 MB `.bss` and every allocation |
+| 3 | `nn::oe` | 36 | application lifecycle; `nn::oe::Initialize`, `FinishStartupLogo` |
+| 4 | `nn::fs` | 44 |Mount romfs, không có gì nhiều nếu không có nó|
+| 5 | `nn::vi` / `nn::nvn` | — |Hiển thị và trình bày|
+| 6 | `nn::gfx` | 289 |Thiết bị đồ hoạ, hồ nhớ, bộ đệm lệnh|
+| 7 | `nn::g3d` | 292 |Trình vẽ tiêu đề 3D sẽ sử dụng|
+| 8 | `nn::ui2d` | 476 |Trình vẽ hai chiều cho bố trí trình đơn|
+| 9 | `nn::atk` | 1,426 |UI công cụkit — tiêu đề, thực đơn, nút|
+| 10 | `nn::font` | 230 |trình đơn|
+| 11 | `nn::hid` | 112 |ở mức tối thiểu, "bắt đầu ấn tượng"|
+| 12 | `nn::audio` | 182 |nhiều trò chơi chặn khởi động trên âm thanh init|
 
-Hai khối lớn nhất là `nn::atk` (1.426) và `nn::ui2d` (476) — hệ thống menu là phụ
-thuộc boot lớn nhất. Tiếp theo là `nn::gfx` + `nn::g3d`.
+The long poles are `nn::atk` (1,426) and `nn::ui2d` (476) — the menu system is
+the largest single boot dependency. `nn::gfx` + `nn::g3d` are next.
 
-Điều đáng yên tâm là **`nn::nex` (6.815) và `nn::pia` (4.687) không nằm trong danh
-sách này.** Toàn bộ stack online có thể bị stub mà boot vẫn tiếp tục. Đó chính là
-phần thưởng của quyết định chỉ làm offline.
+Reassuringly, **`nn::nex` (6,815) and `nn::pia` (4,687) are not on this list.**
+Toàn bộ các chồng trực tuyến có thể được stucce và khởi động vẫn tiếp tục tiếp tục.
+quyết định ngoại tuyến duy nhất.
 
 ---
 
-## 5. Các bước thực hiện đầu tiên được đề xuất
+## 5 đề nghị thực hiện bước đầu tiên
 
-1. **Đưa `Lp::Sys::SysInit::Init` vào debugger.** Việc boot có tiến được hay không
-   hoàn toàn trả lời được bằng cách xem nó gọi vào code platform chưa được viết ở
-   đâu. Mọi chỗ chưa biết nhận một implementation `stub → log → return 0`.
-2. **Viết `nn::os` trước.** Framework dùng đa luồng từ rất sớm; nếu không có thread
-   và event hoạt động, binary sẽ **treo** thay vì lỗi rõ ràng. Đây là nơi stub phải
-   là thật, không được là `return 0`.
-3. **Stub thật ồn ào, đừng stub im lặng.** Mọi hàm platform chưa viết nên ghi log
-   tên đã demangle của nó. Log boot sau đó trở thành hàng đợi công việc, theo đúng
-   thứ tự phụ thuộc — đó là cách dự án kiểu này thường được thúc đẩy.
-4. **Hãy chờ bức tường đầu tiên ở `nn::fs` / romfs.** Màn hình tiêu đề cần layout
-   và font từ `romfs`. Việc trích xuất và một shim filesystem native là công việc
-   sớm.
-5. **Đừng bắt đầu bằng `nn::atk`.** Nó là phụ thuộc lớn nhất nhưng lại được chạm
-   tới muộn; viết nó trước khi có graphics device thì không có gì để vẽ lên.
+1. **Get `Lp::Sys::SysInit::Init` under the debugger.** Whether boot proceeds at
+   Tất cả là trả lời có thể bằng cách xem nơi nó lần đầu tiên gọi vào nền tảng un-inmented
+   code. Every unknown gets a `stub → log → return 0` implementation.
+2. **Implement `nn::os` first.** The framework is threaded from very early;
+   Không có chỉ làm việc và sự kiện nhị phân sẽ treo thay vì thất bại
+   cleanly. This is where stubs must be real, not `return 0`.
+3. **Stub lớn tiếng, không phải lặng lẽ.** Mỗi chức năng nền tảng đơn giản nên đăng nhập
+   Tên bị gỡ rối. Bản ghi khởi động sau đó trở thành hàng đợi công việc, phụ thuộc
+   Thứ tự, đó là cách mà lớp dự án này thường được điều khiển.
+4. **Expect the first wall at `nn::fs` / romfs.** The title screen needs layouts
+   and fonts from `romfs`. Extraction and a native filesystem shim are early work.
+5. **Do not start with `nn::atk`.** It is the largest dependency but it is reached
+   trễ; thực hiện nó trước khi thiết bị đồ họa tồn tại không có gì cần vẽ.
 
-## 6. Những gì cột mốc này chủ động loại trừ
+## 6. Điều quan trọng này cố tình loại trừ
 
-- Không gameplay, không player, không cơ chế mực.
-- Không online, không ghép trận, không lobby — đều bị stub.
-- Không Salmon Run, không Turf War.
-- Không save data, không Amiibo, không chụp màn hình.
+- Không chơi game, không cầu thủ, không cơ khí mực.
+- Không trực tuyến, không mai mối, không hành lang — bị kẹt cứng.
+- Không cá hồi Run, không chiến tranh Turf.
+- Không lưu dữ liệu, không Amibo, không chụp màn hình.
 
-## 7. Đánh giá thẳng thắn
+## 7 Thành thật đánh giá
 
-Ngay cả khi đã thu hẹp xuống "boot tới menu", đây vẫn là một dự án đáng kể: đường
-tới đích chạy qua tầng OS, filesystem, graphics device, các renderer 2D/3D, và một
-bộ công cụ UI 1.426 hàm. Đó là **nhiều tháng**, **không phải vài ngày**.
+Thậm chí thu hẹp thành "boot to menu", đây là một dự án đáng kể: con đường quan trọng
+Chạy qua lớp hệ điều hành, hệ thống tập tin, thiết bị đồ họa, thiết bị 2D/3D
+Các nhà sản xuất, và 1,426 công cụ giao diện công cụ giao diện, đó là tháng làm việc, chứ không phải ngày.
 
-Lý do khiến nó đáng để thử là vì mục tiêu này **có giới hạn và quan sát được**.
-Khác với "port cả game", "tới được màn hình tiêu đề" chỉ có **một** điều kiện thành
-công nhị phân, và log boot cho bạn biết chính xác cần viết gì tiếp theo. Dưới chiến
-lược patch-don't-rewrite, con đường đó ****không** đòi hỏi phải decompile 113.150 hàm
-trước**.
+Lý do nó đáng để cố gắng là mục tiêu bị giới hạn và
+Nhìn thấy**. Không giống như "để lại trò chơi", "đã đến được màn hình tiêu đề" có một nhị phân riêng
+Tình trạng thành công, và nhật ký khởi động cho biết chính xác phải thực hiện gì tiếp theo.
+con đường đó không cần phải phân giải 113, 150
+chức năng trước.
