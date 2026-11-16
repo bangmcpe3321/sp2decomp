@@ -46,9 +46,18 @@ struct SemaphoreType {
 
 struct ThreadType {
     // UNOBSERVABLE. Created by the SDK via CreateThread and held BY POINTER at three of
-    // four observed sites, so the game never exercises its size inline. The game also
-    // never reads fields inside it in the observed code, so any adequate host reserve
-    // works.
+    // four observed sites, so the game never exercises its size inline (one site passes
+    // `this + 8`, which is why the storage must stay inline-capable). The game also never
+    // reads fields inside it in the observed code.
+    //
+    // The host state is kept in a platform-layer registry keyed by the handle ADDRESS, not
+    // behind a pointer read out of this storage. The SDK has one observed inline site
+    // (`this + 8`), so a control call can arrive before CreateThread; treating the bytes
+    // as a pointer there would dereference unrelated object memory. Keying on the address
+    // makes an uninitialised or stale handle degrade to "no host state" instead.
+    //
+    // The storage itself is kept only for SDK size/alignment fidelity and is never
+    // interpreted by this layer.
     alignas(16) unsigned char storage[0x80];
 };
 
@@ -90,8 +99,12 @@ struct MemoryInfo {
 // buffer as sibling fields of the same object, always exactly 0x48 apart, so the
 // queue's region is 0x48 — the only size in this header established by measurement.
 // The count is a runtime capacity (0x20 and 0x21 both appear), not part of the type.
+//
+// ALIGNMENT MATTERS HERE: alignas(16) made sizeof() 0x50 on both x86-64 and AArch64,
+// padding the measured 0x48 region and putting any sibling 8 bytes too far out. 8-byte
+// alignment keeps sizeof() == 0x48, which is what the sibling offsets require.
 struct MessageQueueType {
-    alignas(16) unsigned char storage[0x48];
+    alignas(8) unsigned char storage[0x48];
 };
 
 // Thread-local-destructor callback passed to AllocateTlsSlot.
@@ -149,22 +162,78 @@ void UnlockMutex(MutexType *mutex);
 void InitializeSemaphore(SemaphoreType *semaphore, int initial, int max);
 void AcquireSemaphore(SemaphoreType *semaphore);
 void ReleaseSemaphore(SemaphoreType *semaphore);
+// Host-state release. Not imported by `main`, but the SDK exposes these names and the
+// host allocations behind the opaque storage would otherwise have no owner that frees them.
+void FinalizeSemaphore(SemaphoreType *semaphore);
+
+// ---- message queue -------------------------------------------------------
+// A message is one machine word in this SDK (the observed buffer is an array of `ulong`).
+// `buffer` and `count` are CALLER-OWNED. Host state holds the ring head/tail/count, a
+// mutex and two condition variables, reached through a tagged pointer in
+// MessageQueueType::storage so the measured 0x48 visitor layout is unchanged.
+using Message = std::uintptr_t;
 
 // `InitializeMessageQueue((MessageQueueType *)(this + 0x1f8), (ulong *)(this + 0x240), 0x20);`
+// 7 call sites; capacities 1, 0x20 and 0x21 are observed. A queue with a null buffer or a
+// zero capacity is left unusable rather than silently pretending to be initialised.
 void InitializeMessageQueue(MessageQueueType *queue, std::uint64_t *buffer, std::size_t count);
 
+// Blocking forms wait while the queue is full/empty. The Try* forms never block and
+// return false when the operation cannot complete immediately; they do not write the out
+// parameter on failure. The blocking Receive writes 0 for an unusable queue (it returns
+// rather than hanging, which is the behaviour the contract test pins).
+void SendMessageQueue(MessageQueueType *queue, Message message);
+bool TrySendMessageQueue(MessageQueueType *queue, Message message);
+void ReceiveMessageQueue(Message *outMessage, MessageQueueType *queue);
+bool TryReceiveMessageQueue(Message *outMessage, MessageQueueType *queue);
+// Number of messages currently held. `-1` when the queue was never initialised, so a
+// caller cannot mistake an unusable queue for an empty one.
+int GetMessageQueueCount(const MessageQueueType *queue);
+// Host-state release; see FinalizeSemaphore. InitializeMessageQueue must not be called on
+// an already-initialised queue (call Finalize first). The storage is caller-owned and may
+// be uninitialised, so the previous state is deliberately not chased through it; calling
+// Initialize twice therefore leaks the first state and is not supported.
+void FinalizeMessageQueue(MessageQueueType *queue);
+
 // ---- CPU / threads -------------------------------------------------------
+// The thread model follows the SDK: CreateThread only *creates*; StartThread runs it and
+// WaitThread joins it. The host cannot honour the guest `stack`/`stackSize` arguments (they
+// describe guest memory, not the host's), so they are accepted for call-site fidelity and
+// recorded on the handle rather than used to size the host thread.
+
+// `_func_void_void_ptr *param_2, void *param_3, void *param_4, ulong param_5, int param_6`
+// Entry is `void(ThreadFunction)(void *argument)`.
+using ThreadFunction = void (*)(void *);
+
 // `uVar7 = nn::os::GetCurrentCoreNumber();` — 121 call sites.
 std::uint32_t GetCurrentCoreNumber();
 std::uint64_t GetThreadAvailableCoreMask();
+
+// CreateThread(thread, entry, argument, stack, stackSize, priority)
+void CreateThread(ThreadType *thread, ThreadFunction function, void *argument,
+                  void *stack, std::size_t stackSize, int priority);
+void StartThread(ThreadType *thread);
+void WaitThread(ThreadType *thread);
+void DestroyThread(ThreadType *thread);
+void YieldThread();
+
 // `nn::os::SetThreadCoreMask(*(ThreadType **)(this + 0xe0), -1, (ulong)uVar1);`
 // core == -1 means "any core in mask".
 void SetThreadCoreMask(ThreadType *thread, int core, std::uint64_t mask);
+// NOT an SDK import: a diagnostic accessor so the mask round-trip is testable.
+std::uint64_t GetThreadCoreMask(ThreadType *thread);
 void ChangeThreadPriority(ThreadType *thread, int priority);
-std::uint32_t GetCurrentThread();
+// Callers cast the result straight to `ThreadType *` (`pTVar4 = (ThreadType *)...`), and it
+// is then passed back to SetThreadCoreMask/ChangeThreadPriority, so it must be a real
+// handle rather than a small identity token. A host thread that never went through
+// CreateThread gets a stable implicit handle on first use.
+ThreadType *GetCurrentThread();
 std::uint64_t GetThreadId(ThreadType *thread);
 int GetThreadPriority(ThreadType *thread);
 void SetThreadName(ThreadType *thread, const char *name);
+// NOT an SDK import: a diagnostic accessor so the name round-trip is testable.
+const char *GetThreadName(ThreadType *thread);
+
 // `nn::os::GetCurrentStackInfo((ulong *)&local_38, (ulong *)local_48);` — two OUT params.
 void GetCurrentStackInfo(std::uintptr_t *outBase, std::uintptr_t *outSize);
 
