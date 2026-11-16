@@ -1,5 +1,14 @@
 # `nso2elf.mjs` MOD0 export bug — root cause
 
+> **Resolved (2026-11-14).** MOD0 has **no export table**: SwitchBrew's MOD page describes
+> it as a `PT_DYNAMIC` replacement (`DynamicOffset`, bss, exception info, `ModuleOffset`).
+> The real names come from `.dynamic → DT_SYMTAB / DT_STRTAB`, reached at
+> `DynamicOffset + 8` (MOD0 is at `.text+8`, and its offsets are relative to the MOD0
+> header). `main` yields 146,623 dynsym entries; `sdk` yields 15,948 (including 349
+> `nn::os`), so the earlier "sdk has no dynsym" conclusion was also wrong.
+> `tools/nso/nso0.mjs`, `nso-dynsym.mjs` and `nso2elf.mjs` implement this and are verified
+> against the retail dump. See [PLATFORM_LAYER_FOUND.md](PLATFORM_LAYER_FOUND.md).
+
 Round 4 traced why the converter yields **113,150 real names for `main`** but a
 **corrupt `.symtab` for `sdk`**. The cause is identified; the fix is not yet written.
 

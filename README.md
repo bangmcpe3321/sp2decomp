@@ -260,6 +260,7 @@ Open:
 | What you want | Where to go |
 |---|---|
 | What is known, what is not, and in what order to read | [STATUS.md](STATUS.md) |
+| **Where the platform layer actually is — 51/51 provider map** | **[PLATFORM_LAYER_FOUND.md](PLATFORM_LAYER_FOUND.md)** |
 | How far the port gets on screen right now | [RECOMP_BOOT_TO_UI.md](RECOMP_BOOT_TO_UI.md) |
 | The decoded startup chain | [BOOT_CALLGRAPH.md](BOOT_CALLGRAPH.md) |
 | The whole `main` module in one document | [ENGINE_REFERENCE.md](ENGINE_REFERENCE.md) |

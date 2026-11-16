@@ -1,5 +1,13 @@
 # Where the platform layer actually is (and is not)
 
+> **Correction (2026-11-14).** The conclusion below — that no module in the dump
+> implements the platform layer — is **false**. It came from a broken MOD0/NSO parse.
+> With the parser fixed, all 51 boot functions resolve: 39 in `sdk`, 6 `nn::vi` in
+> `subsdk1`, 3 `nv` + `nvnBootstrapLoader` in `subsdk0`, and
+> `nn::init::InitializeAllocator` / `nvnLoadCProcs` in `main` itself.
+> See [PLATFORM_LAYER_FOUND.md](PLATFORM_LAYER_FOUND.md) for the 51/51 map and the
+> evidence. The text below is retained as the history of the incorrect conclusion.
+
 This document answers the question the `sdk` investigation was opened to answer, and
 the answer is that the platform layer **is not in this dump at all**.
 

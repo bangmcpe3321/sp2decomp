@@ -7,6 +7,12 @@ boot closure actually calls, with every boot-closure call site, so the
 implementation can be written against observed usage rather than a guessed
 signature.
 
+> **Update (2026-11-14).** The addresses below are `main` GOT slots, not provider
+> addresses. Every entry now has a real implementation in the dump; the provider module
+> and module-relative offset for all 51 are in
+> [PLATFORM_LAYER_FOUND.md](PLATFORM_LAYER_FOUND.md). The call-site text is still useful
+> as the boot-closure contract, but it is no longer the only evidence.
+
 > `open-ead/nnsdk` ships **no `include/nn/os/` headers**, so `nn::os` contracts
 > are not documented anywhere public. The call sites below are the
 > authoritative contract.
