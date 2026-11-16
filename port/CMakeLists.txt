@@ -140,4 +140,11 @@ if(SP2PORT_BUILD_TESTS)
   target_link_libraries(graphics_allocator_tests PRIVATE nnos)
   add_test(NAME graphics_allocator_contract COMMAND graphics_allocator_tests)
 
+  # The eight platform symbols the boot closure called but port/ did not define
+  # (PORT_WORKLIST.md Phase 1-4: StandardAllocator::Initialize, nn::time, nifm, oe,
+  #  nv::InitializeGraphics / SetGraphicsDevtoolsAllocator, nvnBootstrapLoader).
+  add_executable(platform_symbols_tests tests/platform_symbols_tests.cpp)
+  target_link_libraries(platform_symbols_tests PRIVATE nnos)
+  add_test(NAME platform_symbols_contract COMMAND platform_symbols_tests)
+
 endif()

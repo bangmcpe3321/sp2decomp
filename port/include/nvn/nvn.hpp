@@ -60,10 +60,56 @@ const char *ProcName(int index);
 // decompiled body uses. Returns the number of functions resolved (453).
 int LoadCProcs(void *device, GetProcAddressFn getProcAddress);
 
+// --- nvnBootstrapLoader (0x7101413d48) ----------------------------------------------------
+//
+// The binary symbol is the GLOBAL `nvnBootstrapLoader`, resolved by imported name. Its own body
+// was not decompiled (NVN_DEVICE_CREATION.md §5), but the call sites settle the contract: it
+// takes a function NAME and returns that function's address.
+//
+//   pcVar12 = (code *)nvnBootstrapLoader("nvnDeviceInitialize");
+//   puVar13 = (undefined *)nvnBootstrapLoader("nvnDeviceGetProcAddress");
+//   if ((pcVar12 != 0) && (puVar13 != 0)) { ... device created ... }
+//
+// (sead::GameFrameworkNx::initializeGraphicsSystem 0x7100e6738c; nn::gfx DeviceImpl::Initialize
+// 0x710135d8d8 has a third site. See NVN_DEVICE_CREATION.md §1 and §3 for the two routes.)
+//
+// LOOKUP ORDER, chosen to stay consistent with LoadCProcs rather than invent a table:
+//   1. host registrations made with RegisterBootstrapProc (a port seam, not in the binary);
+//   2. if LoadCProcs has run, the same name->slot mapping it uses (ProcName/ResolvedProcs),
+//      but ONLY when the slot is backed. A slot still pointing at UnbackedProc is treated as a
+//      miss: returning it would make the call site's non-null check pass and the "device" would
+//      silently be a no-op.
+//   3. otherwise null. That is the DOCUMENTED FALLBACK, and it is a contract the binary
+//      already handles: both call sites test the result for null and skip device creation.
+//
+// Null is therefore a normal, expected answer on this port until something registers real NVN
+// entry points -- not an error to paper over. nvn::LoadCProcs remains the table-shaped route;
+// this is the per-name route to the same surface.
+Proc BootstrapLoader(const char *name);
+
+// Registers a host implementation for a name, so a backend (or a test) can make the loader
+// answer without fabricating the 453-entry table. A second registration of the same name
+// replaces it; returns false for a null/empty name, a null proc, or a full table.
+bool RegisterBootstrapProc(const char *name, Proc proc);
+
+// True once LoadCProcs has resolved the table, so a caller can tell "not loaded" from
+// "loaded but this slot is unbacked".
+bool ProcsLoaded();
+
+// Whether slot `index` holds a real resolved pointer rather than the UnbackedProc reporter.
+bool ProcIsBacked(int index);
+
+// Every call to BootstrapLoader, and the subset that produced no backed pointer (including
+// null/empty names). lookups - misses == answers served, so a test can distinguish "never
+// asked" from "asked and refused".
+int bootstrapLookupCount();
+int bootstrapMissCount();
+
 // How many times a resolved slot has been invoked with no implementation behind it. Exposed so
 // a test can assert the stubs REPORT rather than silently succeed.
 int unbackedCallCount();
 
+// Resets the resolved table, the host registration table and the lookup counters.
 void ResetForTesting();
 
 } // namespace nvn

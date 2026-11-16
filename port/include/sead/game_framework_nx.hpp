@@ -9,10 +9,11 @@
 //
 // PerformanceMgrNx::initialize's own body is a single call through a platform GOT slot:
 //   (*(code *)PTR_Initialize_7102f9a698)();
-// which is nn::oe::Initialize or similar -- a platform entry the reconstructed platform layer
-// must satisfy. It is modelled as a platform hook here so the forwarding wrapper can be
-// ported without inventing a performance-configuration policy that the binary does not expose
-// at this call site.
+// PORT_WORKLIST.md line 90 attributes that slot to nn::oe::Initialize (0x71014121c8), so
+// game_framework_nx.cpp now calls into the platform layer instead of only counting the step.
+// The target configures the operator environment; the port's version is a recorded no-op
+// (see nn/services.hpp), because no host equivalent exists and the call site exposes no
+// parameters to model.
 #pragma once
 
 // GameFrameworkNx derives from GameFramework, so its definition is needed here -- including
