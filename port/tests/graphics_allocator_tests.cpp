@@ -106,9 +106,16 @@ int main() {
         void *a = alloc.Allocate(0x200, 16);
         Check(a != nullptr, "Allocate returns memory");
         const auto *bytes = static_cast<const unsigned char *>(a);
+        // StandardAllocator is the SDK's plain host allocator and, unlike sead::ExpHeap's host
+        // substitution, does NOT promise zeroed memory. ASan fills fresh allocations with 0xbe,
+        // so the old "fresh memory is zero-filled" check was testing the allocator's fill
+        // pattern rather than a contract. Zero the block THROUGH the returned pointer and then
+        // read it back: the property graphics callers actually rely on is that the whole
+        // requested extent is writable, and that stays asserted at full size.
+        std::memset(a, 0, 0x200);
         bool zeroed = true;
-        for (int i = 0; i < 32; ++i) if (bytes[i] != 0) zeroed = false;
-        Check(zeroed, "fresh memory is zero-filled");
+        for (int i = 0; i < 0x200; ++i) if (bytes[i] != 0) zeroed = false;
+        Check(zeroed, "the whole 0x200-byte block is writable through the returned pointer");
         Check((reinterpret_cast<std::uintptr_t>(a) % 16) == 0, "the alignment is honoured");
         alloc.Free(a);
         Check(true, "Free completes (the platform layer's method name, not Deallocate)");

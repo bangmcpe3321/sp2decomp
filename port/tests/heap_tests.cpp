@@ -12,6 +12,15 @@
 #include <cstring>
 #include <vector>
 
+// sead::WriteStream is only forward-declared in heap.hpp: dumpYAML is inert and never reads the
+// stream. Binding its reference from a null pointer (the earlier
+// `*static_cast<sead::WriteStream *>(nullptr)` form) is still UB -- UBSan reports "reference
+// binding to null pointer" even though the callee ignores it -- so the test gets its own empty
+// stream to bind to. The vtable slot being callable is what this check is about, not the stream.
+namespace sead {
+class WriteStream {};
+} // namespace sead
+
 namespace {
 int g_failures = 0;
 int g_checks = 0;
@@ -105,7 +114,8 @@ int main() {
 
             // Diagnostics must be inert but callable, since they are in the vtable.
             heap->dump();
-            heap->dumpYAML(*static_cast<sead::WriteStream *>(nullptr), 0);
+            sead::WriteStream inertStream;
+            heap->dumpYAML(inertStream, 0);
             heap->genInformation_(nullptr);
             Check(true, "dump / dumpYAML / genInformation_ are inert but callable");
 
