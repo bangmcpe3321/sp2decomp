@@ -64,8 +64,16 @@ MgrTaskArg::MgrTaskArg(const TaskClassID &classID) {
     // The TaskClassID is copied whole: `*(u64*)(this+8) = classID[1]; *(u64*)this = classID[0];`
     factory = classID;
 
+    // The decompiled body performs eight-byte zero stores at these offsets. Four of them
+    // (0x1f, 0x37, 0x4f, 0x67) are NOT eight-byte aligned, because the guest's storage is
+    // packed/overlaid there; the guest is AArch64, where the unaligned store is legal. The
+    // same access through a host `uint64_t *` is UB and UBSan reports "store to misaligned
+    // address", so copy the zero value instead. memcpy has the identical byte effect and
+    // leaves every offset unchanged -- the layout asserts above and the flag/field accessors
+    // depend on them.
+    const std::uint64_t zero = 0;
     for (std::size_t off : kZeroed) {
-        *reinterpret_cast<std::uint64_t *>(reinterpret_cast<unsigned char *>(this) + off) = 0;
+        std::memcpy(reinterpret_cast<unsigned char *>(this) + off, &zero, sizeof zero);
     }
 
     fieldA8 = 0;   // the body stores a byte 0 here

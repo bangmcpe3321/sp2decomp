@@ -29,6 +29,13 @@ else
   echo "   binary not produced"
 fi
 
+if [ -x "$BUILD/thread_tests" ]; then
+  "$BUILD/thread_tests"
+  echo "   thread test exit=$?"
+else
+  echo "   thread_tests binary not produced"
+fi
+
 echo
 echo "=== also report warnings-only rebuild to catch ABI sloppiness ==="
 touch "$PORT/src/os.cpp"

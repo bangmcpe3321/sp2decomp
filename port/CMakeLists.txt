@@ -55,6 +55,14 @@ if(SP2PORT_BUILD_TESTS)
   target_link_libraries(services_tests PRIVATE nnos)
   add_test(NAME services_contract COMMAND services_tests)
 
+  # nn::os threads + message queues -- CreateThread and its lifecycle, and the queue
+  # operations sead::MessageQueue drives.
+  add_executable(thread_tests tests/thread_tests.cpp)
+  target_link_libraries(thread_tests PRIVATE nnos)
+  add_test(NAME thread_contract COMMAND thread_tests)
+  # A lost wakeup shows up as a hang; fail instead of blocking CI forever.
+  set_tests_properties(thread_contract PROPERTIES TIMEOUT 30)
+
   # Replays the real boot sequence rather than testing functions in isolation.
   add_executable(boot_integration tests/boot_integration.cpp)
   target_link_libraries(boot_integration PRIVATE nnos)
@@ -131,5 +139,12 @@ if(SP2PORT_BUILD_TESTS)
   add_executable(graphics_allocator_tests tests/graphics_allocator_tests.cpp)
   target_link_libraries(graphics_allocator_tests PRIVATE nnos)
   add_test(NAME graphics_allocator_contract COMMAND graphics_allocator_tests)
+
+  # The eight platform symbols the boot closure called but port/ did not define
+  # (PORT_WORKLIST.md Phase 1-4: StandardAllocator::Initialize, nn::time, nifm, oe,
+  #  nv::InitializeGraphics / SetGraphicsDevtoolsAllocator, nvnBootstrapLoader).
+  add_executable(platform_symbols_tests tests/platform_symbols_tests.cpp)
+  target_link_libraries(platform_symbols_tests PRIVATE nnos)
+  add_test(NAME platform_symbols_contract COMMAND platform_symbols_tests)
 
 endif()

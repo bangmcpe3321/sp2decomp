@@ -179,10 +179,15 @@ void TestMemory() {
 void TestThreadQueries() {
     std::printf("Thread queries (GetThreadId, GetThreadPriority, SetThreadName, GetCurrentStackInfo)\n");
 
-    const std::uint32_t id = nn::os::GetCurrentThread();
+    // GetCurrentThread() must be a real handle: observed callers cast it straight to
+    // ThreadType* and pass it back into SetThreadCoreMask/ChangeThreadPriority.
+    nn::os::ThreadType *self = nn::os::GetCurrentThread();
+    Check(self != nullptr, "GetCurrentThread returns a usable ThreadType handle");
+    const std::uint64_t id = nn::os::GetThreadId(self);
+    Check(id != 0, "GetThreadId of the current handle is non-zero");
     Check(nn::os::GetThreadId(nullptr) == id,
           "GetThreadId(nullptr) reports the current thread");
-    Check(nn::os::GetCurrentThread() == id, "current thread id is stable");
+    Check(nn::os::GetCurrentThread() == self, "current thread handle is stable");
 
     const int prio = nn::os::GetThreadPriority(nullptr);
     Check(prio > 0, "GetThreadPriority returns a positive SDK-range priority");
@@ -254,6 +259,7 @@ void TestQueueAndSemaphore() {
         w2.join();
         Check(blockedAgain, "count never exceeds max, so the extra release did not add a permit");
         (void)t1;
+        nn::os::FinalizeSemaphore(&s);
     }
 
     // A rejected initialisation must not leave a usable-looking semaphore.
@@ -261,7 +267,10 @@ void TestQueueAndSemaphore() {
         alignas(16) nn::os::SemaphoreType bad{};
         nn::os::InitializeSemaphore(&bad, 5, 1); // initial > max
         Check(true, "InitializeSemaphore rejects initial > max without crashing");
+        nn::os::FinalizeSemaphore(&bad);
     }
+
+    nn::os::FinalizeMessageQueue(&q);
 }
 
 // ---------------------------------------------------------------------------
@@ -342,8 +351,8 @@ void TestCoreQueries() {
     Check(core < 64 && ((mask >> core) & 1ull) != 0,
           "current core index lies inside the available mask");
 
-    const std::uint32_t t0 = nn::os::GetCurrentThread();
-    Check(t0 != 0, "GetCurrentThread returns a non-null handle");
+    nn::os::ThreadType *t0 = nn::os::GetCurrentThread();
+    Check(t0 != nullptr, "GetCurrentThread returns a non-null handle");
     Check(nn::os::GetCurrentThread() == t0, "and is stable within a thread");
 }
 

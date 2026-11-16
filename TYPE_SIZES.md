@@ -181,6 +181,15 @@ bash tools/wsl/wsl-aarch64-run.sh            # cross-compile + run under qemu
 3. `ThreadType` and `SemaphoreType` document that their sizes are unverified, and why
    that is not currently blocking.
 
+### Alignment correction
+
+`MessageQueueType` originally declared `alignas(16) storage[0x48]`. C++ pads a type to a
+multiple of its alignment, so `sizeof(MessageQueueType)` measured **0x50** on both x86-64
+and AArch64 — 8 bytes more than the measured 0x48 sibling delta. That would put a sibling
+field 8 bytes too far out in any port-side object that embedded the type by value. The
+type is now `alignas(8)`, which keeps `sizeof() == 0x48` and matches the sibling offsets.
+Verified on both architectures: 17/17 contract suites pass under qemu-aarch64.
+
 ## Limits
 
 - **`MutexType`'s true size is not established.** The 0x20 spacing is suggestive only.

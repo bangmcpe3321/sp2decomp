@@ -8,6 +8,12 @@ what to read first.
 
 ## The short version
 
+> **Correction (2026-11-14).** The platform-layer rows below are superseded. The layer
+> **is** in the dump: 39 functions in `sdk`, 6 `nn::vi` in `subsdk1`, 3 `nv` +
+> `nvnBootstrapLoader` in `subsdk0`, and `nn::init::InitializeAllocator` /
+> `nvnLoadCProcs` in `main`. See [PLATFORM_LAYER_FOUND.md](PLATFORM_LAYER_FOUND.md).
+> The work changes from "write 51 functions" to "decompile the shipped bodies".
+
 | Question | Answer |
 |---|---|
 | Can a decompiler be driven against this target? | **Yes** — REA + Ghidra on Linux/WSL. See [DECOMPILATION_UNBLOCKED.md](DECOMPILATION_UNBLOCKED.md) |
@@ -68,7 +74,7 @@ These are the documents a port is actually written against:
 
 ### 7. Why the platform layer is missing
 
-- **[FIRMWARE_ANALYSIS.md](FIRMWARE_ANALYSIS.md)** � the firmware route: what it provides, and why it did not yield the platform layer.
+- **[FIRMWARE_ANALYSIS.md](FIRMWARE_ANALYSIS.md)** � the firmware route: what it provides, and why it did not yield the platform layer.
 - **[PLATFORM_LAYER_LOCATION.md](PLATFORM_LAYER_LOCATION.md)** — the decisive finding,
   with evidence.
 - **[IMPORT_MAPPING.md](IMPORT_MAPPING.md)** — how `main` resolves imports (PLT
@@ -97,7 +103,7 @@ These are the documents a port is actually written against:
 - **[RECOMP_RYUJINX_GDB.md](RECOMP_RYUJINX_GDB.md)** - **ground truth**: attached gdb to the real game in Ryujinx via a **reverse bridge** (defeats WSL->Windows inbound block without admin). **`sdk_base = 0xbdd2000` verified two ways**, `svcSetHeapSize = 0xbe70660`. Static offsets confirmed against the live module.
 - **[RECOMP_STARTUP_SEQUENCE.md](RECOMP_STARTUP_SEQUENCE.md)** - **the real start-up, read**: entry is `main+0x24` after the MOD0 header; `main` has **ZERO** SVCs; `sdk` has a 1:1 stub table with `svcSetHeapSize` at **`sdk+0x9e660`**; `rtld` does **no** heap setup. The remaining question is one lookup: **who calls that stub**.
 - **[RECOMP_BOOTSTRAP_ATTEMPTED.md](RECOMP_BOOTSTRAP_ATTEMPTED.md)** - the bootstrap was **IMPLEMENTED** and the engine **REJECTED it**: `tryCreate(buf,size,name,nullptr,false)` returns null. The null-parent assumption is **FALSIFIED**. Guessing signatures is exhausted; the game's own start-up must be read.
-- **[RECOMP_BOOTSTRAP_CIRCULAR.md](RECOMP_BOOTSTRAP_CIRCULAR.md)** - the arena was chased: IDisposer(heap=null) faults because **a heap is needed to create the first heap**. This is a **circular bootstrap dependency**, not a bug � the experimental method is exhausted; what remains is a build task.
+- **[RECOMP_BOOTSTRAP_CIRCULAR.md](RECOMP_BOOTSTRAP_CIRCULAR.md)** - the arena was chased: IDisposer(heap=null) faults because **a heap is needed to create the first heap**. This is a **circular bootstrap dependency**, not a bug � the experimental method is exhausted; what remains is a build task.
 - **[RECOMP_ONE_INPUT_REFUTED.md](RECOMP_ONE_INPUT_REFUTED.md)** - the one-input hypothesis is **REFUTED**: supplying a size moves the fault to `sead::Heap::Heap` (null arena). This is a **multi-step framework bootstrap**, not a missing number.
 - **[RECOMP_ZERO_SOURCE.md](RECOMP_ZERO_SOURCE.md)** - the zero is TRACED: `Framework::initialize` receives an `InitializeArg` whose two size fields are **both zero** (`+102`..`+141`). One defect, two symptoms.
 - **[RECOMP_SYSINFO_RULED_OUT.md](RECOMP_SYSINFO_RULED_OUT.md)** - all 10 `svcGetInfo` types logged: type 16 is **never queried**, so `system_resource_size` (my `0x0` field) is **ELIMINATED**. The guess would have cost a round; the measurement cost one rebuild.
@@ -164,7 +170,7 @@ n::os::LockMutex+0x48 on uninitialised state. The entry bypasses SDK system init
 
 ### 6. The port
 
-- **[TYPE_SIZES.md](TYPE_SIZES.md)** � what is actually measured about the SDK's opaque types, and what is not.
+- **[TYPE_SIZES.md](TYPE_SIZES.md)** � what is actually measured about the SDK's opaque types, and what is not.
 - **[port/](port/)** - the actual platform layer: CMake project, 
 n::os header and
   implementation, and contract tests. Build and test with 	ools/wsl/wsl-build-port.sh.
@@ -178,17 +184,21 @@ Recorded because acting on them without knowing would waste time:
 1. **`PORT_WORKLIST.md` addresses are GOT slots, not code.** Ghidra promoted them to
    "functions", so they look like code addresses but return `NO THUNK` on lookup. Caller
    discovery by address fails for these entries.
-2. **`nso2elf.mjs` reads the wrong MOD0 fields.** It uses `MOD0+0x18`/`+0x1c` as the
-   string/symbol table pointers; for `sdk` those are a zeroed struct pointer and garbage.
-   It produces a *self-consistent but wrong* `.symtab`. Root cause in
-   [NSO2ELF_MOD0_BUG.md](NSO2ELF_MOD0_BUG.md).
-3. **`nso2elf.mjs` emits no `.dynsym`/`.rela` sections**, so the converted ELF loses the
-   symbol information the original NSO carries.
+2. **`nso2elf.mjs` MOD0 fields — FIXED (2026-11-14).** It used `MOD0+0x18`/`+0x1c` as
+   string/symbol-table pointers; those are `ModuleOffset` and unrelated data. MOD0 has no
+   export table. The real names come from `.dynamic → DT_SYMTAB/DT_STRTAB`. See
+   [NSO2ELF_MOD0_BUG.md](NSO2ELF_MOD0_BUG.md) and
+   [PLATFORM_LAYER_FOUND.md](PLATFORM_LAYER_FOUND.md).
+3. **`nso2elf.mjs` emits no `.dynsym`/`.rela` — FIXED (2026-11-14).** The converter now
+   emits `.dynsym`/`.dynstr` (and `.symtab`/`.strtab` aliases) recovered through `.dynamic`.
+   Verified on `main` (146,623 entries) and `sdk` (15,948).
 4. **Platform thunk signatures are misleading.** Ghidra renders many 13-byte imports as
    `f(void)`; use [PLATFORM_CALL_SITES.md](PLATFORM_CALL_SITES.md) for real arity.
 
 ## Tooling
 
+- `tools/nso/` — `nso0.mjs` (shared NSO0/MOD0/.dynamic parser), `nso2elf.mjs`,
+  `module-map.mjs` (import → provider module/offset), `validate-elf.mjs`.
 - `tools/static/` — Node analysis scripts (layout, xrefs, call graphs, references).
 - `tools/ghidra/` — Ghidra scripts. **Java only**: Ghidra 12 headless has no Jython and
   PyGhidra cannot install here (host Python 3.14 vs bundled cp310/cp311 wheels).
