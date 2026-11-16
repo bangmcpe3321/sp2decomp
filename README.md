@@ -680,6 +680,10 @@ Switch are trademarks of Nintendo. No affiliation or endorsement is claimed.
 Intended for interoperability research and preservation; use your own legally
 obtained copy of the game.
 
+## Contributors
+
+- [Azlekayn](https://github.com/azlekayn) — contributions to the project.
+
 ## License
 
 Original tooling and notes in this repository are released under the MIT License.
