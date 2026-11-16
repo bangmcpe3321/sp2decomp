@@ -682,7 +682,11 @@ obtained copy of the game.
 
 ## Contributors
 
-- [Azlekayn](https://github.com/azlekayn) — contributions to the project.
+- [Azlekayn](https://github.com/azlekayn) — extended the Splatoon 2
+  reverse-engineering work into the [Inksplash2](https://github.com/azlekayn/Inksplash2)
+  Linux and Steam Deck port, contributing runtime and recompiler fixes, PC input and
+  scripted-input tooling, boot and tutorial-flow testing, Vulkan rendering
+  investigations, and network-stack research.
 
 ## License
 
